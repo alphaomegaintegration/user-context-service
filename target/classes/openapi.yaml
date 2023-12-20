@@ -1,0 +1,915 @@
+openapi: 3.0.3
+info:
+  description: Data Platform User Context Service
+  title: user-context-service
+  version: v1
+tags:
+  - name: Contexts
+  - name: UserContexts
+  - name: Users
+paths:
+  /contexts:
+    post:
+      operationId: createContext
+      description: User must have CREATE_CONTEXTS permission
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '../generator-schemas/Context.json'
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: '../generator-schemas/Context.json'
+          description: OK
+          headers:
+            Cache-Control:
+              description: "Cache-Control header provides important info on how long a response may be considered fresh"
+              schema:
+                type: string
+              example: "Cache-Control: max-age=3600, public, must-revalidate"
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Not Found
+      x-accepts: application/json
+      tags:
+        - Contexts
+      summary: creates new context via upsert
+    get:
+      operationId: getAllContexts
+      description: User must have LIST_CONTEXTS permission
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: What page to grab
+        - in: query
+          name: pageSize
+          schema:
+            type: integer
+            default: 25
+          description: Number of elements on page
+        - in: query
+          name: direction
+          description: Sort order direction
+          schema:
+            type: string
+            enum: [ASC,DESC]
+            default: ASC
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '../generator-schemas/ContextPage.json'
+          description: OK
+          headers:
+            Cache-Control:
+              description: "Cache-Control header provides important info on how long a response may be considered fresh"
+              schema:
+                type: string
+              example: "Cache-Control: max-age=3600, public, must-revalidate"
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Not Found
+      tags:
+        - Contexts
+      summary: gets all contexts
+  /contexts/{contextId}:
+    get:
+      operationId: getContextByContextId
+      description: User must have LIST_CONTEXTS permission
+      parameters:
+        - description: contextId
+          explode: false
+          in: path
+          name: contextId
+          required: true
+          schema:
+            type: string
+          style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '../generator-schemas/Context.json'
+          description: OK
+          headers:
+            Cache-Control:
+              description: "Cache-Control header provides important info on how long a response may be considered fresh"
+              schema:
+                type: string
+              example: "Cache-Control: max-age=3600, public, must-revalidate"
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Not Found
+      tags:
+        - Contexts
+      summary: gets context by contextId
+    delete:
+      operationId: deleteContextByContextId
+      description: User must have DELETE_CONTEXTS permission
+      parameters:
+        - description: contextId
+          explode: false
+          in: path
+          name: contextId
+          required: true
+          schema:
+            type: string
+          style: simple
+      responses:
+        "204":
+          description: deleted successfully
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Not Found
+      tags:
+        - Contexts
+      summary: deletes context by contextId
+    put:
+      operationId: updateContextByContextId
+      description: User must have UPDATE_CONTEXTS permission
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '../generator-schemas/Context.json'
+        required: true
+      parameters:
+        - description: contextId
+          explode: false
+          in: path
+          name: contextId
+          required: true
+          schema:
+            type: string
+          style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '../generator-schemas/Context.json'
+          description: OK
+          headers:
+            Cache-Control:
+              description: "Cache-Control header provides important info on how long a response may be considered fresh"
+              schema:
+                type: string
+              example: "Cache-Control: max-age=3600, public, must-revalidate"
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Not Found
+      tags:
+        - Contexts
+      summary: updates context by contextId
+  /contexts/{contextId}/roles:
+    get:
+      operationId: getRolesByContextId
+      description: User must have LIST_CONTEXTS permission
+      parameters:
+        - description: contextId
+          explode: false
+          in: path
+          name: contextId
+          required: true
+          schema:
+            type: string
+          style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '../generator-schemas/RolePage.json'
+          description: OK
+          headers:
+            Cache-Control:
+              description: "Cache-Control header provides important info on how long a response may be considered fresh"
+              schema:
+                type: string
+              example: "Cache-Control: max-age=3600, public, must-revalidate"
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Not Found
+      tags:
+        - Contexts
+      summary: get roles by contextId
+    post:
+      operationId: addAdditionalRolesByContextId
+      description: User must have UPDATE_CONTEXTS permission
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '../generator-schemas/Role.json'
+        required: true
+      parameters:
+        - description: contextId
+          explode: false
+          in: path
+          name: contextId
+          required: true
+          schema:
+            type: string
+          style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '../generator-schemas/Context.json'
+          description: OK
+          headers:
+            Cache-Control:
+              description: "Cache-Control header provides important info on how long a response may be considered fresh"
+              schema:
+                type: string
+              example: "Cache-Control: max-age=3600, public, must-revalidate"
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Not Found
+      tags:
+        - Contexts
+      summary: get roles by contextId
+  /contexts/{contextId}/roles/{roleId}:
+    get:
+      operationId: getRoleByContextIdAndRoleId
+      description: User must have LIST_CONTEXTS permission
+      parameters:
+        - description: contextId
+          explode: false
+          in: path
+          name: contextId
+          required: true
+          schema:
+            type: string
+          style: simple
+        - description: roleId
+          explode: false
+          in: path
+          name: roleId
+          required: true
+          schema:
+            type: string
+          style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '../generator-schemas/Role.json'
+          description: OK
+          headers:
+            Cache-Control:
+              description: "Cache-Control header provides important info on how long a response may be considered fresh"
+              schema:
+                type: string
+              example: "Cache-Control: max-age=3600, public, must-revalidate"
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Not Found
+      tags:
+        - Contexts
+      summary: get context by contextId and roleId
+
+  /usercontexts:
+    post:
+      operationId: createUserContext
+      description: User must have CREATE_USER_CONTEXTS permission
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '../generator-schemas/UserContext.json'
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '../generator-schemas/UserContext.json'
+          description: OK
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Not Found
+      x-accepts: application/json
+      tags:
+        - UserContexts
+      summary: creates userContext
+    get:
+      operationId: getAllUserContexts
+      description: User must have LIST_USER_CONTEXTS permission
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: What page to grab
+        - in: query
+          name: pageSize
+          schema:
+            type: integer
+            default: 25
+          description: Number of elements on page
+        - in: query
+          name: direction
+          description: Sort order direction
+          schema:
+            type: string
+            enum: [ASC,DESC]
+            default: ASC
+        - in: header
+          name: Cache-Control
+          description: Http cache control header
+          schema:
+            type: string
+            enum: [no-cache,must-revalidate]
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '../generator-schemas/UserContextPage.json'
+          description: OK
+          headers:
+            Cache-Control:
+              description: "Cache-Control header provides important info on how long a response may be considered fresh"
+              schema:
+                type: string
+              example: "Cache-Control: max-age=3600, public, must-revalidate"
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Not Found
+      tags:
+        - UserContexts
+      summary: gets all userContexts
+  /usercontexts/batch:
+    post:
+      operationId: createUserContextBatch
+      description: User must have CREATE_USER_CONTEXTS permission
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '../generator-schemas/UserContextBatchRequest.json'
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '../generator-schemas/UserContextPage.json'
+          description: OK
+          headers:
+            Cache-Control:
+              description: "Cache-Control header provides important info on how long a response may be considered fresh"
+              schema:
+                type: string
+              example: "Cache-Control: max-age=3600, public, must-revalidate"
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Not Found
+      x-accepts: application/json
+      tags:
+        - UserContexts
+      summary: creates userContext
+  /usercontexts/{usercontextId}:
+    get:
+      operationId: getUserContextByUserContextId
+      description: User must have LIST_USER_CONTEXTS permission
+      parameters:
+        - description: usercontextId
+          explode: false
+          in: path
+          name: usercontextId
+          required: true
+          schema:
+            type: string
+          style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '../generator-schemas/UserContext.json'
+          description: OK
+          headers:
+            Cache-Control:
+              description: "Cache-Control header provides important info on how long a response may be considered fresh"
+              schema:
+                type: string
+              example: "Cache-Control: max-age=3600, public, must-revalidate"
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Not Found
+      tags:
+        - UserContexts
+      summary: gets userContext by usercontextId
+    put:
+      operationId: updateUserContext
+      description: User must have UPDATE_USER_CONTEXTS permission
+      parameters:
+        - description: usercontextId
+          explode: false
+          in: path
+          name: usercontextId
+          required: true
+          schema:
+            type: string
+          style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '../generator-schemas/UserContext.json'
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '../generator-schemas/UserContext.json'
+          description: OK
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Not Found
+      x-accepts: application/json
+      tags:
+        - UserContexts
+      summary: updates userContext via upsert
+    delete:
+      operationId: deleteUserContextByUserContextId
+      description: User must have DELETE_USER_CONTEXTS permission
+      parameters:
+        - description: usercontextId
+          explode: false
+          in: path
+          name: usercontextId
+          required: true
+          schema:
+            type: string
+          style: simple
+      responses:
+        "204":
+          description: deleted successfully
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Not Found
+      tags:
+        - UserContexts
+      summary: deletes userContext by usercontextId
+  /usercontexts/user/{userId}/context/{contextId}/role/{roleId}:
+    post:
+      operationId: addRoleToUserContext
+      description: User must have CREATE_USER_CONTEXTS permission
+      parameters:
+        - description: userId
+          explode: false
+          in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+          style: simple
+        - description: contextId
+          explode: false
+          in: path
+          name: contextId
+          required: true
+          schema:
+            type: string
+          style: simple
+        - description: roleId
+          explode: false
+          in: path
+          name: roleId
+          required: true
+          schema:
+            type: string
+          style: simple
+        - in: header
+          name: Cache-Control
+          schema:
+            type: string
+            default: no-cache
+        - in: query
+          name: additionalPermissions
+          description: additionalPermissions comma delimited
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '../generator-schemas/UserContext.json'
+          description: OK
+          headers:
+            Cache-Control:
+              description: "Cache-Control header provides important info on how long a response may be considered fresh"
+              schema:
+                type: string
+              example: "Cache-Control: max-age=3600, public, must-revalidate"
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Not Found
+      tags:
+        - UserContexts
+      summary: gets userContext by userId and contextId
+  /usercontexts/user/{userId}/context/{contextId}/permissions:
+    post:
+      operationId: addPermissionsToUserContext
+      parameters:
+        - description: userId
+          explode: false
+          in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+          style: simple
+        - description: contextId
+          explode: false
+          in: path
+          name: contextId
+          required: true
+          schema:
+            type: string
+          style: simple
+        - in: header
+          name: Cache-Control
+          schema:
+            type: string
+            default: no-cache
+        - in: query
+          name: additionalPermissions
+          description: additionalPermissions comma delimited
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '../generator-schemas/UserContext.json'
+          description: OK
+          headers:
+            Cache-Control:
+              description: "Cache-Control header provides important info on how long a response may be considered fresh"
+              schema:
+                type: string
+              example: "Cache-Control: max-age=3600, public, must-revalidate"
+      tags:
+        - UserContexts
+      summary: gets userContext by userId and contextId
+  /usercontexts/user/{userId}/context/{contextId}/permissions/{permission}:
+    post:
+      operationId: addPermissionToUserContext
+      parameters:
+        - description: userId
+          explode: false
+          in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+          style: simple
+        - description: contextId
+          explode: false
+          in: path
+          name: contextId
+          required: true
+          schema:
+            type: string
+          style: simple
+        - description: permission
+          explode: false
+          in: path
+          name: permission
+          required: true
+          schema:
+            type: string
+          style: simple
+        - in: header
+          name: Cache-Control
+          schema:
+            type: string
+            default: no-cache
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '../generator-schemas/UserContext.json'
+          description: OK
+          headers:
+            Cache-Control:
+              description: "Cache-Control header provides important info on how long a response may be considered fresh"
+              schema:
+                type: string
+              example: "Cache-Control: max-age=3600, public, must-revalidate"
+      tags:
+        - UserContexts
+      summary: gets userContext by userId and contextId
+  /usercontexts/user/{userId}/context/{contextId}:
+    get:
+      operationId: getUserContextByUserIdAndContextId
+      description: User must have LIST_USER_CONTEXTS permission
+      parameters:
+        - description: userId
+          explode: false
+          in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+          style: simple
+        - description: contextId
+          explode: false
+          in: path
+          name: contextId
+          required: true
+          schema:
+            type: string
+          style: simple
+        - in: query
+          name: allRoles
+          description: Determines if all roles permissions are returned
+          schema:
+            type: boolean
+            default: false
+        - in: query
+          name: roles
+          description: comma separated list of roles
+          required: false
+          schema:
+            type: string
+        - in: header
+          name: Cache-Control
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '../generator-schemas/UserContextPermissions.json'
+          description: OK
+          headers:
+            Cache-Control:
+              description: "Cache-Control header provides important info on how long a response may be considered fresh"
+              schema:
+                type: string
+              example: "Cache-Control: max-age=3600, public, must-revalidate"
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Not Found
+      tags:
+        - UserContexts
+      summary: gets userContext by userId and contextId
+  /usercontexts/user/{userId}:
+    get:
+      operationId: getUserContextByUserId
+      description: User must have LIST_USER_CONTEXTS permission
+      parameters:
+        - in: path
+          explode: false
+          description: userId
+          name: userId
+          required: true
+          schema:
+            type: string
+          style: simple
+        - in: header
+          name: Cache-Control
+          schema:
+            type: string
+            default: no-cache
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: What page to grab
+        - in: query
+          name: pageSize
+          schema:
+            type: integer
+            default: 25
+          description: Number of elements on page
+        - in: query
+          name: direction
+          description: Sort order direction
+          schema:
+            type: string
+            enum: [ASC,DESC]
+            default: ASC
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '../generator-schemas/UserContextPage.json'
+          description: OK
+          headers:
+            Cache-Control:
+              description: "Cache-Control header provides important info on how long a response may be considered fresh"
+              schema:
+                type: string
+              example: "Cache-Control: max-age=3600, public, must-revalidate"
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Not Found
+      tags:
+        - UserContexts
+      summary: gets userContext by userId and contextId
+  /usercontexts/context/{contextId}:
+    get:
+      operationId: getUserContextByContextId
+      description: user must have LIST_USER_CONTEXTS permission
+      parameters:
+        - in: path
+          explode: false
+          description: contextId
+          name: contextId
+          required: true
+          schema:
+            type: string
+          style: simple
+        - in: header
+          name: Cache-Control
+          schema:
+            type: string
+            default: no-cache
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: What page to grab
+        - in: query
+          name: pageSize
+          schema:
+            type: integer
+            default: 25
+          description: Number of elements on page
+        - in: query
+          name: direction
+          description: Sort order direction
+          schema:
+            type: string
+            enum: [ASC,DESC]
+            default: ASC
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '../generator-schemas/UserContextPage.json'
+          description: OK
+          headers:
+            Cache-Control:
+              description: "Cache-Control header provides important info on how long a response may be considered fresh"
+              schema:
+                type: string
+              example: "Cache-Control: max-age=3600, public, must-revalidate"
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Not Found
+      tags:
+        - UserContexts
+      summary: gets userContext by userId and contextId
+
+  /users/batch:
+    post:
+      operationId: createUsers
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserLoad'
+          description: OK
+          headers:
+            Cache-Control:
+              description: "Cache-Control header provides important info on how long a response may be considered fresh"
+              schema:
+                type: string
+              example: "Cache-Control: max-age=3600, public, must-revalidate"
+      tags:
+        - Users
+      summary: gets userContext by userId and contextId
+
+components:
+  schemas:
+    UserLoad:
+      type: UserLoad
+  securitySchemes:
+    basicAuth:
+      scheme: basic
+      type: http
+    Bearer:
+      bearerFormat: JWT
+      scheme: bearer
+      type: http
+

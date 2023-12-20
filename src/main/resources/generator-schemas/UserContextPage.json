@@ -1,0 +1,27 @@
+{
+  "$schema" : "http://json-schema.org/draft-07/schema#",
+  "type" : "object",
+  "properties" : {
+    "content" : {
+      "type" : "array",
+	  "items": {
+		"$ref": "UserContext.json"
+	  }
+    },
+	"elapsed" : {
+	  "type" : "string"
+	},
+    "correlationId" : {
+      "type" : "string"
+    },
+    "page" : {
+      "type" : "integer"
+    },
+    "pageSize" : {
+      "type" : "integer"
+    },
+    "total" : {
+      "type" : "integer"
+    }
+  }
+}

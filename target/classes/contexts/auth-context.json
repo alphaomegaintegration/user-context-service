@@ -1,0 +1,21 @@
+{
+  "id": "auth",
+  "contextId": "auth",
+  "contextName": "auth",
+  "enabled": true,
+  "permissions": ["CREATE_CONTEXTS", "UPDATE_CONTEXTS", "LIST_CONTEXTS", "DELETE_CONTEXTS", "CREATE_USER_CONTEXTS", "UPDATE_USER_CONTEXTS",
+    "LIST_USER_CONTEXTS", "DELETE_USER_CONTEXTS"],
+  "roles": [
+    {
+      "roleId": "auth_admin",
+      "roleName": "auth_ADMIN",
+      "permissions": ["CREATE_CONTEXTS", "UPDATE_CONTEXTS", "LIST_CONTEXTS", "DELETE_CONTEXTS", "CREATE_USER_CONTEXTS", "UPDATE_USER_CONTEXTS",
+        "LIST_USER_CONTEXTS", "DELETE_USER_CONTEXTS"]
+    },
+    {
+      "roleId": "auth_reader",
+      "roleName": "auth_READER",
+      "permissions": ["LIST_CONTEXTS", "LIST_USER_CONTEXTS"]
+    }
+  ]
+}
