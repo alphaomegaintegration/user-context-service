@@ -11,9 +11,11 @@ import java.util.Date;
 import java.util.HashSet;
 import java.util.Objects;
 
+import static com.alpha.omega.user.service.ServiceUtils.USER_CONTEXT_KEY_PREFIX;
 
+
+@RedisHash(USER_CONTEXT_KEY_PREFIX)
 @JsonInclude(JsonInclude.Include.NON_NULL)
-@RedisHash("user:context")
 @NoArgsConstructor
 @AllArgsConstructor
 @ToString

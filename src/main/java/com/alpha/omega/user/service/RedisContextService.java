@@ -4,17 +4,22 @@ import com.alpha.omega.user.model.*;
 import com.alpha.omega.user.repository.*;
 import com.alpha.omega.user.validator.ServiceError;
 import com.alpha.omega.user.validator.UserContextValidator;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.NoArgsConstructor;
+import org.apache.commons.collections4.IterableUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeanUtils;
 import org.springframework.data.crossstore.ChangeSetPersister;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.redis.connection.DataType;
 import org.springframework.data.redis.core.ReactiveRedisOperations;
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.SynchronousSink;
 import reactor.core.scheduler.Schedulers;
@@ -24,13 +29,11 @@ import reactor.util.function.Tuples;
 import java.io.NotActiveException;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashSet;
-import java.util.List;
+import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 import static com.alpha.omega.user.service.ServiceUtils.*;
 
@@ -43,7 +46,13 @@ public class RedisContextService implements ContextService {
 
 
     public static final String CONTEXT_ID_MUST_THE_SAME_AS_IN_PAYLOAD = "ContextId must the same as in payload.";
-
+    @Builder.Default
+    UserContextValidator userContextValidator = new UserContextValidator();
+    ContextRepository contextRepository;
+    PagingAndSortingContextRepository pagingAndSortingContextRepository;
+    RoleRepository roleRepository;
+    ReactiveRedisOperations<String, ContextEntity> contextOps;
+    ObjectMapper objectMapper;
 
     /*
     final static Function<ContextEntity, ContextDto> convertContextEntityToDto = (contextEntity) -> {
@@ -57,7 +66,6 @@ public class RedisContextService implements ContextService {
 
      */
 
-    UserContextValidator userContextValidator;
 
     final static Function<Role, RoleDto> roleToDto = (role) -> {
 
@@ -156,7 +164,7 @@ public class RedisContextService implements ContextService {
     final static Function<Context, ContextEntity> convertContextToContextEntity() {
         return (context) -> {
             Date now = new Date();
-            logger.trace("Got context in convertContextToContextEntity => {}", context);
+            logger.info("Got context in convertContextToContextEntity => {}", context);
             ContextEntity contextEntity = new ContextEntity();
             BeanUtils.copyProperties(context, contextEntity, new String[]{"enabled"});
             //contextEntity.setCreatedBy(inContextDto.getCreatedBy());
@@ -171,30 +179,54 @@ public class RedisContextService implements ContextService {
     }
 
 
-    ContextRepository contextRepository;
-
-    ReactiveRedisOperations<String, ContextEntity> contextOps;
-
     public RedisContextService(ContextRepository contextRepository, ReactiveRedisTemplate<String, ContextEntity> reactiveContextRedisTemplate) {
         this.contextRepository = contextRepository;
         this.contextOps = reactiveContextRedisTemplate;
     }
 
-    final static String CONTEXT_KEY_PREFIX = "context:";
-
-    String calculateKey(String contextId) {
-        return new StringBuilder(CONTEXT_KEY_PREFIX).append(contextId).toString();
-    }
-
-
 
     @Override
     public Mono<Context> createContext(Context context) {
+
         return Mono.just(context)
                 .publishOn(Schedulers.parallel())
                 .map(convertContextToContextEntity())
-                .flatMap(ctx -> contextOps.opsForValue().set(calculateKey(ctx.getContextId()), ctx))
-                .map(bool -> bool ? context : new Context());
+                .map(ctx -> {
+
+                    List<RoleEntity> roles = ctx.getRoles().stream()
+                            .map(role -> roleRepository.save(role))
+                            .collect(Collectors.toList());
+                    ctx.setRoles(roles);
+                    contextRepository.save(ctx);
+                    return ctx;
+                })
+                .map(ServiceUtils.convertContextEntityToContext);
+//                .flatMap(ctx -> Mono.zip(contextOps.opsForValue()
+//                        .set(calculateContextKey(ctx.getContextId()), ctx),
+//                        Mono.just(ctx)))
+//                .map(tuple -> ServiceUtils.convertContextEntityToContext.apply(tuple.getT2()));
+
+    }
+
+
+    /*
+    @Override
+    public Mono<Context> createContext_original(Context context) {
+
+        return Mono.just(context)
+                .publishOn(Schedulers.parallel())
+                .map(convertContextToContextEntity())
+                .flatMap(ctx -> Mono.zip(contextOps.opsForValue()
+                                .set(calculateContextKey(ctx.getContextId()), ctx),
+                        Mono.just(ctx)))
+                .map(tuple -> ServiceUtils.convertContextEntityToContext.apply(tuple.getT2()));
+
+    }
+
+     */
+
+    private Map<?, ?> convertContextEntityToMap(ContextEntity ctx) {
+        return objectMapper.convertValue(ctx, Map.class);
     }
 
     final static Function<UserContext, UserContextEntity> userContextToUserContextEntity(String modifiedBy,
@@ -225,7 +257,7 @@ public class RedisContextService implements ContextService {
             }
 
             UserContextEntity userContextEntity = new UserContextEntity();
-            if (StringUtils.isNotBlank(userContext.getId())){
+            if (StringUtils.isNotBlank(userContext.getId())) {
                 userContextEntity.setId(userContext.getId());
             }
             userContextEntity.setContextId(userContext.getContextId());
@@ -236,7 +268,7 @@ public class RedisContextService implements ContextService {
             userContextEntity.setLastModifiedByDate(Date.from(modifiedOffsetDate.toInstant()));
             userContextEntity.setCreatedBy(userContext.getCreatedBy() != null ? userContext.getCreatedBy() : modifiedBy);
             userContextEntity.setLastModifiedBy(userContext.getModifiedBy() != null ? userContext.getModifiedBy() : modifiedBy);
-            userContextEntity.setEnabled(userContext.getEnabled() != null ? userContext.getEnabled():Boolean.TRUE);
+            userContextEntity.setEnabled(userContext.getEnabled() != null ? userContext.getEnabled() : Boolean.TRUE);
             userContextEntity.setAdditionalPermissions(userContext.getAdditionalPermissions());
             userContextEntity.setAdditionalRoles(userContext.getAdditionalRoles());
             return userContextEntity;
@@ -267,7 +299,6 @@ public class RedisContextService implements ContextService {
             e.printStackTrace();
         }
         userContext.setTransactionId(userContextEntity.getTransactionId());
-
         return userContext;
     };
 
@@ -283,48 +314,13 @@ public class RedisContextService implements ContextService {
         };
     }
 
-    /*
-    //@Override
-    public Mono<Context> createContext2(Context context) {
-
-        return Mono.just(context)
-                .doOnNext(ctx -> logger.trace("using context => {}", ctx))
-                .handle(validateContext())
-                .map(convertContextToContextEntity(inputContextDto))
-                .flatMap(ctx -> contextRepository.findByContextId(ctx.getContextId()).switchIfEmpty(Mono.just(ctx)).zipWith(Mono.just(ctx)))
-                .flatMap(tpctx -> contextRepository.deleteByContextId(tpctx.getT1().getContextId()).thenReturn(tpctx))
-                .doOnNext(ctx -> logger.info("using tuple context => {}", ctx))
-                .flatMap(tpctx -> {
-                    ContextEntity inputCtx = tpctx.getT2();
-                    ContextEntity foundCtx = tpctx.getT1();
-                    inputCtx.setTransactionId(inputContextDto.getTransactionId());
-                    if (foundCtx != null) {
-                        if (StringUtils.isNotBlank(foundCtx.getCreatedBy())){
-                            inputCtx.setCreatedBy(foundCtx.getCreatedBy());
-                        }
-
-                        if (foundCtx.getCreatedDate() != null){
-                            logger.trace("found created date => {} input created date => {}",foundCtx.getCreatedDate(),
-                                    inputCtx.getCreatedDate());
-                            inputCtx.setCreatedDate(foundCtx.getCreatedDate());
-                        }
-                    }
-                    logger.trace("persisting ctx => {}",inputCtx);
-                    return contextRepository.save(inputCtx);
-                })
-                .map(convertContextEntityToContext);
-    }
-
-     */
-
-
 
     @Override
     public Mono<Context> updateContext(Context context) {
         return Mono.just(context)
                 .publishOn(Schedulers.parallel())
                 .map(convertContextToContextEntity())
-                .flatMap(ctx -> contextOps.opsForValue().set(calculateKey(ctx.getContextId()), ctx))
+                .flatMap(ctx -> contextOps.opsForValue().set(calculateContextKey(ctx.getContextId()), ctx))
                 .map(bool -> bool ? context : new Context());
     }
 
@@ -332,9 +328,9 @@ public class RedisContextService implements ContextService {
 
     public Mono<ContextEntity> findContextEntity(String contextId) {
         return Mono.just(contextId)
-                .publishOn(Schedulers.parallel())
+                .publishOn(Schedulers.boundedElastic())
                 //.map(ctxId -> contextRepository.findByContextId(ctxId))
-                .flatMap(ctxId -> contextOps.opsForValue().get(calculateKey(ctxId)))
+                .map(ctxId -> contextRepository.findByContextId(ctxId))
                 .switchIfEmpty(EMPTY_CONTEXT_ENTITY)
                 .doOnNext(ctx -> logger.info("-------- Got context entity -> {}", ctx));
     }
@@ -364,7 +360,7 @@ public class RedisContextService implements ContextService {
         return Mono.just(contextId)
                 .publishOn(Schedulers.parallel())
                 //.map(ctxId -> contextRepository.deleteByContextId(ctxId))
-                .flatMap(ctxId -> contextOps.opsForValue().delete(calculateKey(ctxId)))
+                .flatMap(ctxId -> contextOps.opsForValue().delete(calculateContextKey(ctxId)))
                 .and(Mono.empty());
     }
 
@@ -372,27 +368,52 @@ public class RedisContextService implements ContextService {
         return (pageRequest.getPageNumber() - 1) * pageRequest.getPageSize();
     };
 
+    Function<List<Map.Entry<Object, Object>>, ContextEntity> mapEntrieToContextEntityFunction(){
+        return entries -> {
+            Map<Object, Object> map = entries.stream().collect(Collectors.toMap(entry -> entry.getKey(),
+                    entry -> entry.getValue()));
+            return objectMapper.convertValue(map, ContextEntity.class);
+        };
+    }
+
+    Function<String,Mono<Boolean>> dataTypeHash(){
+        return ky -> {
+            return contextOps.type(ky)
+                    .filter(dataType -> dataType.equals(DataType.HASH))
+                    .map(dt -> dt.equals(DataType.HASH));
+        };
+    }
+
+    Flux<String> getOnlyHashKeys(Flux<String> keys){
+        return Flux.from(keys)
+                .filterWhen(dataTypeHash());
+    }
+
     /*
     https://spring.io/guides/gs/spring-data-reactive-redis/
      */
     @Override
     public Mono<ContextPage> getAllContextEntities(PageRequest pageRequest) {
-
+        //contextOps.opsForHash().
 
         return Mono.just(pageRequest)
-                .publishOn(Schedulers.parallel())
+                .publishOn(Schedulers.boundedElastic())
                 .doOnNext(pageRequest1 -> logger.info("Got page request => {}", pageRequest1))
-                //.map(request -> contextRepository.findAll(example,request))
-                .flatMap(request -> Mono.zip(contextOps.keys(CONTEXT_KEY_PREFIX + "*").count(),
-                        contextOps.keys(CONTEXT_KEY_PREFIX + "*")
-                                .flatMap(contextOps.opsForValue()::get)
+                .doOnNext(pageRequest1 -> logger.info("Got total count => {}", contextRepository.count()))
+                .flatMap(request -> Mono.zip(Mono.just(contextRepository.count()),
+                        Flux.fromIterable (contextRepository.findAll())
                                 .skip(calculateSkip.apply(pageRequest))
-                                .take(request.getPageSize()).collectList(), (t1, t2) -> Tuples.of(t1, t2)))
+                                .take(request.getPageSize()).collectList(),
+                        (t1, t2) -> Tuples.of(t1, t2)))
+
                 .elapsed()
                 .map(tuplePage -> {
-                    //Page<ContextEntity> page = tuplePage.getT2();
+                    //Tuple2<Long, Iterable<ContextEntity>> tupleList = tuplePage.getT2();
+                    //List<ContextEntity> list = IterableUtils.toList(tupleList.getT2());
                     Tuple2<Long, List<ContextEntity>> tupleList = tuplePage.getT2();
                     List<ContextEntity> list = tupleList.getT2();
+                    //Tuple2<Long, Page<ContextEntity>> tupleList = tuplePage.getT2();
+                    //List<ContextEntity> list = tupleList.getT2().getContent();
                     ContextPage contextPage = new ContextPage();
                     contextPage.setPage(pageRequest.getPageNumber());
                     contextPage.setTotal(tupleList.getT1().intValue());
@@ -456,5 +477,26 @@ public class RedisContextService implements ContextService {
                 .collectList()
                 .map(list -> list.get(0))
                 .map(roleEntityToRole);
+    }
+
+    @Override
+    public Flux<Role> getRolesByContextIdAndRoleIdIn(String contextId, List<String> roleIds, boolean allRoles) {
+
+        return Mono.just(Tuples.of(contextId, roleIds))
+                .flatMapMany(tuple -> findContextEntity(tuple.getT1()).map(ce -> ce.getRoles()))
+                .flatMap(col -> Flux.fromIterable(col))
+                .filter(role -> allRoles ? Boolean.TRUE : roleIds.contains(role.getRoleId()))
+                .map(roleEntityToRole);
+    }
+
+    @Override
+    public Mono<Boolean> roleExistsInContext(String roleId, String contextId) {
+        return Mono.just(Tuples.of(roleId,contextId))
+                .flatMap(tuple -> findContextEntity(tuple.getT1())
+                        .map(ce -> ce.getRoles().stream()
+                                .filter(roleEntity -> roleEntity.getRoleId().equals(tuple.getT1()))
+                                .findFirst()))
+                .map(Optional::isPresent);
+
     }
 }

@@ -1,0 +1,14 @@
+{
+  "users": [
+    {
+      "userId": "dbassi002",
+      "contextId": "QAWB-Test-Context-1674060259",
+      "roleId": "ReaderRole"
+    },
+    {
+      "userId": "dbassi001",
+      "contextId": "QAWB-Test-Context-1674060259",
+      "roleId": "AdminRole"
+    }
+  ]
+}

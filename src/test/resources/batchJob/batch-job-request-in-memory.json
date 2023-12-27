@@ -1,0 +1,16 @@
+{
+  "jobParameters": {
+    "csvFileName": "123.csv"
+  },
+  "correlationId": "654383",
+  "users": [
+    {
+      "firstName": "Pamela",
+      "lastName": "Caldwell",
+      "email": "pamela.caldwell@example.com",
+      "password": "6nhTUpLwY/veR6Mo8yv1od0dZreH3f1eEjLHniBxriA=",
+      "country": "United States",
+      "mailCode": "54812"
+    }
+  ]
+}

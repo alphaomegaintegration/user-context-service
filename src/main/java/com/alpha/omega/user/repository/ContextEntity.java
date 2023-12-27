@@ -15,13 +15,15 @@ import java.util.Date;
 import java.util.HashSet;
 import java.util.Objects;
 
+import static com.alpha.omega.user.service.ServiceUtils.CONTEXT_KEY_PREFIX;
+// TODO REDIS used contextEntity instead of context.
+@RedisHash(CONTEXT_KEY_PREFIX)
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @Data
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @JsonIdentityInfo(
 		generator = ObjectIdGenerators.PropertyGenerator.class,
 		property = "id")
-@RedisHash("context")
 @NoArgsConstructor
 @AllArgsConstructor
 @ToString
@@ -44,9 +46,10 @@ public class ContextEntity {
 	@NotNull
 	private Collection<String> permissions;
 	@NotNull
+
+	//@JsonIdentityReference(alwaysAsId = false)
 	@Reference
-	@JsonIdentityReference(alwaysAsId = true)
-	private Collection<RoleEntity> roles = new HashSet<>();
+	private Collection<RoleEntity> roles;
 	private String transactionId;
 	@CreatedBy
 	//@NotNull

@@ -44,6 +44,20 @@ services:
       node_net:
         ipv4_address: 172.28.1.31
 
+  postgres2:
+    image: postgres
+    volumes:
+      - postgres_data2:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: batch
+      POSTGRES_USER: batchuser
+      POSTGRES_PASSWORD: password
+    ports:
+      - 5432:5432
+    networks:
+      node_net:
+        ipv4_address: 172.28.1.32
+
   keycloak:
     #image: quay.io/keycloak/keycloak:legacy
     image: bitnami/keycloak:22.0.1
@@ -93,6 +107,8 @@ volumes:
   cache:
     driver: local
   postgres_data:
+    driver: local
+  postgres_data2:
     driver: local
 
 networks:

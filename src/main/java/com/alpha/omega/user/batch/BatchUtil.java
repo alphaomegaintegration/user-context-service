@@ -1,10 +1,14 @@
 package com.alpha.omega.user.batch;
 
+import com.alpha.omega.user.repository.UserContextEntity;
+import com.alpha.omega.user.repository.UserEntity;
+
 import java.nio.charset.Charset;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.KeySpec;
 import java.util.Base64;
+import java.util.function.Function;
 
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
@@ -74,4 +78,35 @@ public class BatchUtil {
                 .toString().getBytes(Charset.defaultCharset()));
     }
 
+    public static Function<UserLoad, UserEntity> defaultUserLoadUserEntityFunction(){
+        return userLoad -> {
+            UserEntity userEntity = new UserEntity();
+            userEntity.setFirstName(userLoad.getFirst());
+            userEntity.setLastName(userLoad.getLast());
+            userEntity.setMailCode(userLoad.getPostcode());
+            userEntity.setEmail(userLoad.getEmail());
+            userEntity.setCountry(userLoad.getCountry());
+            return userEntity;
+        };
+    }
+
+    public static Function<UserLoad, UserContextEntity> defaultUserLoadUserContextEntityFunction() {
+        return userLoad -> {
+            UserContextEntity userContextEntity = new UserContextEntity();
+            userContextEntity.setContextId(userLoad.getContextId());
+            userContextEntity.setUserId(userLoad.getEmail());
+            userContextEntity.setRoleId(userLoad.getRole());
+            return userContextEntity;
+        };
+    }
+
+    public static final String getStringArrayValue(String array[], int index){
+        String val = null;
+        try{
+            val = array[index];
+        } catch (ArrayIndexOutOfBoundsException aioe){
+
+        }
+        return val;
+    }
 }

@@ -627,6 +627,7 @@ paths:
             default: no-cache
         - in: query
           name: additionalPermissions
+          required: true
           description: additionalPermissions comma delimited
           schema:
             type: string
@@ -883,12 +884,19 @@ paths:
   /users/batch:
     post:
       operationId: createUsers
+      requestBody:
+        description: Create user with batch
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BatchUserRequest'
       responses:
         "200":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserLoad'
+                $ref: '#/components/schemas/BatchUserResponse'
           description: OK
           headers:
             Cache-Control:
@@ -904,6 +912,10 @@ components:
   schemas:
     UserLoad:
       type: UserLoad
+    BatchUserRequest:
+      type: BatchUserRequest
+    BatchUserResponse:
+      type: BatchUserResponse
   securitySchemes:
     basicAuth:
       scheme: basic

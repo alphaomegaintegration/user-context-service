@@ -5,7 +5,10 @@ import com.alpha.omega.user.model.ContextPage;
 import com.alpha.omega.user.model.Role;
 import com.alpha.omega.user.model.RolePage;
 import org.springframework.data.domain.PageRequest;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+
+import java.util.List;
 
 public interface ContextService {
 
@@ -23,4 +26,6 @@ public interface ContextService {
 
     Mono<Context> updateContextByContextId(String contextId, Mono<Context> context);
     Mono<Role> getRoleByContextIdAndRoleId(String contextId, String roleId);
+    Flux<Role> getRolesByContextIdAndRoleIdIn(String contextId, List<String> roleIds, boolean allRoles);
+    Mono<Boolean> roleExistsInContext(String roleId, String contextId);
 }

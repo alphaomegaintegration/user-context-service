@@ -1,0 +1,48 @@
+{
+  "id": "unhrc-bims",
+  "contextId": "unhrc-bims",
+  "contextName": "unhrc-bims",
+  "enabled": true,
+  "permissions": [
+    "SCHEDULE_APPLICANTS",
+    "ASSIGN_ADMIN_ROLE",
+    "ASSIGN_ADJUDICATOR_ROLE",
+    "LIST_APPLICANTS",
+    "BATCH_SCHEDULE_APPLICANTS",
+    "VIEW_APPLICANT_DATA",
+    "VIEW_MY_SCHEDULE",
+    "VIEW_APPLICANTS_SCHEDULE"
+  ],
+  "roles": [
+    {
+      "roleId": "admin-unhrc-bims",
+      "roleName": "admin-unhrc-bims",
+      "permissions": [
+        "SCHEDULE_APPLICANTS",
+        "ASSIGN_ADMIN_ROLE",
+        "ASSIGN_ADJUDICATOR_ROLE",
+        "LIST_APPLICANTS",
+        "BATCH_SCHEDULE_APPLICANTS",
+        "VIEW_APPLICANT_DATA",
+        "VIEW_APPLICANTS_SCHEDULE"
+      ]
+    },
+    {
+      "roleId": "adjudicator-unhrc-bims",
+      "roleName": "adjudicator-unhrc-bims",
+      "permissions": [
+        "VIEW_MY_SCHEDULE"
+      ]
+    },
+    {
+      "roleId": "employee-unhrc-bims",
+      "roleName": "employee-unhrc-bims",
+      "permissions": [
+        "SCHEDULE_APPLICANTS",
+        "LIST_APPLICANTS",
+        "VIEW_APPLICANT_DATA",
+        "VIEW_APPLICANTS_SCHEDULE"
+      ]
+    }
+  ]
+}

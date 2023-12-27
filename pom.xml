@@ -20,6 +20,10 @@
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-redis-reactive</artifactId>
         </dependency>
 
@@ -36,11 +40,13 @@
             <version>1.5.0</version>
         </dependency>
 
+        <!-- https://mvnrepository.com/artifact/com.redislabs/spring-redisearch -->
         <dependency>
             <groupId>com.redislabs</groupId>
             <artifactId>spring-redisearch</artifactId>
-            <version>3.0.1</version>
+            <version>3.1.2</version>
         </dependency>
+
 
         <!-- https://mvnrepository.com/artifact/commons-io/commons-io -->
         <dependency>
@@ -54,10 +60,34 @@
             <version>5.8</version>
         </dependency>
 
+        <!-- https://mvnrepository.com/artifact/org.postgresql/postgresql -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>42.7.1</version>
+        </dependency>
+
+        <!--
+
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
-            <version>2.1.214</version>
+            <scope>runtime</scope>
+        </dependency>
+        -->
+        <!--
+        implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
+	implementation 'org.springframework.boot:spring-boot-starter-security'
+        -->
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
 
         <dependency>
@@ -233,12 +263,16 @@
                                 <typeMapping>ObjectNode=ObjectNode</typeMapping>
                                 <!--typeMapping>JobParameters=JobParameters</typeMapping-->
                                 <typeMapping>UserLoad=UserLoad</typeMapping>
+                                <typeMapping>BatchUserRequest=BatchUserRequest</typeMapping>
+                                <typeMapping>BatchUserResponse=BatchUserResponse</typeMapping>
                             </typeMappings>
                             <importMappings>
                                 <importMapping>Instant=java.time.Instant</importMapping>
                                 <importMapping>Date=java.util.Date</importMapping>
                                 <importMapping>ObjectNode=com.fasterxml.jackson.databind.node.ObjectNode</importMapping>
                                 <importMapping>UserLoad=com.alpha.omega.user.batch.UserLoad</importMapping>
+                                <importMapping>BatchUserRequest=com.alpha.omega.user.batch.BatchUserRequest</importMapping>
+                                <importMapping>BatchUserResponse=com.alpha.omega.user.batch.BatchUserResponse</importMapping>
                             </importMappings>
 
                             <!--							<generateApis>true</generateApis>-->
@@ -262,10 +296,14 @@
                             <importMappings>
                                 <importMapping>ObjectNode=com.fasterxml.jackson.databind.node.ObjectNode</importMapping>
                                 <importMapping>UserLoad=com.alpha.omega.user.batch.UserLoad</importMapping>
+                                <importMapping>BatchUserRequest=com.alpha.omega.user.batch.BatchUserRequest</importMapping>
+                                <importMapping>BatchUserResponse=com.alpha.omega.user.batch.BatchUserResponse</importMapping>
                             </importMappings>
                             <typeMappings>
                                 <typeMapping>ObjectNode=com.fasterxml.jackson.databind.node.ObjectNode</typeMapping>
                                 <typeMapping>UserLoad=UserLoad</typeMapping>
+                                <typeMapping>BatchUserRequest=BatchUserRequest</typeMapping>
+                                <typeMapping>BatchUserResponse=BatchUserResponse</typeMapping>
                             </typeMappings>
                             <library>webclient</library>
                             <generateApis>true</generateApis>

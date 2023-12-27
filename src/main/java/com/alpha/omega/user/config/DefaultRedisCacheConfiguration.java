@@ -2,6 +2,8 @@ package com.alpha.omega.user.config;
 
 import com.alpha.omega.user.repository.ContextEntity;
 import com.alpha.omega.user.repository.UserContextEntity;
+import com.redislabs.lettusearch.StatefulRediSearchConnection;
+import com.redislabs.springredisearch.RediSearchAutoConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,6 +13,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.ApplicationListener;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
 import org.springframework.context.event.ContextRefreshedEvent;
 import org.springframework.core.env.Environment;
@@ -19,6 +22,7 @@ import org.springframework.data.redis.connection.*;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
+import org.springframework.data.redis.core.RedisKeyValueAdapter;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.convert.KeyspaceConfiguration;
 import org.springframework.data.redis.core.convert.MappingConfiguration;
@@ -172,24 +176,37 @@ public class DefaultRedisCacheConfiguration {
 
 
     @Configuration
+    @Import({RediSearchAutoConfiguration.class})
     public class PostConfig implements ApplicationListener<ContextRefreshedEvent> {
 
         @Autowired
         ReactiveStringRedisTemplate redisTemplate;
 
         @Autowired
+        StatefulRediSearchConnection<String, String> searchConnection;
+
+
+        @Autowired
         Environment environment;
+
+        @Autowired
+        RedisKeyValueAdapter redisKeyValueAdapter;
 
         @Override
         public void onApplicationEvent(ContextRefreshedEvent event) {
             Boolean flushDB = environment.getProperty("user.batch.db.flush", Boolean.class, Boolean.FALSE);
-            Mono.just(flushDB)
-                    .flatMap(flush -> redisTemplate.getConnectionFactory()
-                            .getReactiveConnection()
-                            .serverCommands()
-                            .flushDb(RedisServerCommands.FlushOption.SYNC))
-                    .doOnNext(val -> logger.info("Redis flushDB => {} request -> {}",flushDB, val))
-                    .subscribe();
+            //redisTemplate.opsForHash().s
+
+            if (flushDB){
+                Mono.just(flushDB)
+                        .flatMap(flush -> redisTemplate.getConnectionFactory()
+                                .getReactiveConnection()
+                                .serverCommands()
+                                .flushDb(RedisServerCommands.FlushOption.SYNC))
+                        .doOnNext(val -> logger.info("Redis flushDB => {} request -> {}",flushDB, val))
+                        .subscribe();
+            }
+
 
         }
     }

@@ -1,0 +1,86 @@
+{
+  "jobParameters": {
+    "csvFileName" : "123.csv",
+    "inMemory": true
+
+  },
+  "correlationId": "65438410",
+  "users": [
+    {
+      "title": "Miss",
+      "first": "jason",
+      "last": "Miller",
+      "streetNumber": 4506,
+      "streetName": "Camden Ave",
+      "city": "Chicago",
+      "state": "Vermont",
+      "country": "United States",
+      "postcode": 54812,
+      "latitude": -9.1638,
+      "longitude": 177.7048,
+      "timezone.offset": "-11:00",
+      "timezone.description": "Midway Island, Samoa",
+      "email": "jason.miller@example.com",
+      "contextId": "user-context-service",
+      "roleId": "reader-user-context-service",
+      "externalId": "c86c87d0-c155-bbe3-eae7-792031b4a1b8"
+    },
+    {
+      "title": "Mrs",
+      "first": "Carlos",
+      "last": "Johnson",
+      "streetNumber": 9527,
+      "streetName": "Hogan St",
+      "city": "Fayetteville",
+      "state": "Minnesota",
+      "country": "United States",
+      "postcode": 91299,
+      "latitude": 33.7564,
+      "longitude": -55.9118,
+      "timezone.offset": "+9:30",
+      "timezone.description": "Adelaide, Darwin",
+      "email": "carlos.johnson@example.com",
+      "contextId": "user-context-service",
+      "roleId": "reader-user-context-service",
+      "externalId": "d42bdd59-c449-ed6a-7d1a-9a185916ee3a"
+    },
+    {
+      "title": "Mr",
+      "first": "Malclom",
+      "last": "Little",
+      "streetNumber": 7189,
+      "streetName": "E Little York Rd",
+      "city": "Hollywood",
+      "state": "Wyoming",
+      "country": "United States",
+      "postcode": 36385,
+      "latitude": -13.1614,
+      "longitude": -135.4528,
+      "timezone.offset": "+9:30",
+      "timezone.description": "Adelaide, Darwin",
+      "email": "malcolm.little@example.com",
+      "contextId": "user-context-service",
+      "roleId": "admin-user-context-service",
+      "externalId": "89fadcf3-a970-5e6c-bc6e-39d915af0881"
+    },
+    {
+      "title": "Mr",
+      "first": "Robert",
+      "last": "Morris",
+      "streetNumber": 1298,
+      "streetName": "Depaul Dr",
+      "city": "Kansas City",
+      "state": "Alaska",
+      "country": "United States",
+      "postcode": 55383,
+      "latitude": -15.7208,
+      "longitude": 179.9809,
+      "timezone.offset": "-1:00",
+      "timezone.description": "Azores, Cape Verde Islands",
+      "email": "robert.morris@example.com",
+      "contextId": "user-context-service",
+      "roleId": "admin-user-context-service",
+      "externalId": "aba76257-4475-410d-83e1-87df54ba5577"
+    }
+  ]
+}

@@ -3,6 +3,8 @@ package com.alpha.omega.user.batch;
 import io.swagger.annotations.ApiModelProperty;
 import lombok.*;
 
+import java.io.Serializable;
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -10,7 +12,7 @@ import lombok.*;
 @Getter
 @Setter
 @ToString
-public class UserLoad {
+public class UserLoad implements Serializable {
 
     @ApiModelProperty(required = false, value = "")
     String title;
@@ -46,4 +48,5 @@ public class UserLoad {
     String contextId;
     @ApiModelProperty(required = false, value = "")
     String role;
+    String password;
 }

@@ -26,3 +26,8 @@ replay_pid*
 /src/test/resources/docker/local.env
 /error.csv
 /archive-test-users-1.csv
+/DB.mv.db
+/DB.trace.db
+
+/target
+

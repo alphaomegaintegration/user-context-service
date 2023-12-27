@@ -8,7 +8,11 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.batch.core.StepContribution;
+import org.springframework.batch.core.scope.context.ChunkContext;
+import org.springframework.batch.core.step.tasklet.Tasklet;
 import org.springframework.batch.item.ItemProcessor;
+import org.springframework.batch.repeat.RepeatStatus;
 
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -24,6 +28,7 @@ public class UserLoadToUserEntityItemProcessor implements ItemProcessor<UserLoad
     private UserRepository userRepository;
     IdempotentConsumer idempotentConsumer;
     Function<UserEntity, String> uniqueIdFunction;
+    Function<UserLoad, UserEntity> userLoadUserEntityFunction = BatchUtil.defaultUserLoadUserEntityFunction();
 
     public static final String calculateId(UserEntity userEntity) {
         return new StringBuilder(userEntity.getFirstName())
@@ -36,11 +41,7 @@ public class UserLoadToUserEntityItemProcessor implements ItemProcessor<UserLoad
 
     @Override
     public UserEntity process(UserLoad item) throws Exception {
-        UserEntity userEntity = new UserEntity();
-        userEntity.setFirstName(item.getFirst());
-        userEntity.setLastName(item.getLast());
-        userEntity.setMailCode(item.getPostcode());
-        userEntity.setEmail(item.getEmail());
+        UserEntity userEntity = userLoadUserEntityFunction.apply(item);
         String uniqueId = uniqueIdFunction.apply(userEntity);
         boolean isProcessed = idempotentConsumer.isProcessed(uniqueId);
         logger.info("Checking uniqueId => {} is processed => {}",uniqueId,isProcessed);
@@ -50,6 +51,5 @@ public class UserLoadToUserEntityItemProcessor implements ItemProcessor<UserLoad
         Long consumableResult = idempotentConsumer.consume(uniqueId);
         return userEntity;
     }
-
 
 }

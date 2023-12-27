@@ -2,6 +2,8 @@ package com.alpha.omega.user.batch;
 
 import com.alpha.omega.user.repository.UserEntity;
 import com.alpha.omega.user.repository.UserRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.core.StepExecution;
@@ -25,6 +27,7 @@ public class UserEntityItemWriter implements ItemWriter<UserEntity> {
 
     private UserRepository userRepository;
     private StepExecution stepExecution;
+    private ObjectMapper objectMapper = new ObjectMapper();
 
     public UserEntityItemWriter(UserRepository userRepository) {
         this.userRepository = userRepository;
@@ -37,11 +40,20 @@ public class UserEntityItemWriter implements ItemWriter<UserEntity> {
                         .map(userEntity -> {
                             UserEntity ue = userRepository.save(userEntity);
                             logger.info("UserEntity saved => {}", ue);
+                            writeToJsonOut(ue);
                             return ue;
                         }).collect(Collectors.toList());
         ExecutionContext stepContext = this.stepExecution.getExecutionContext();
         stepContext.put(PROMOTE_USER_ENTITY_CHUNK_KEY, userEntities);
 
+    }
+
+    void writeToJsonOut(UserEntity userEntity){
+        try {
+            logger.debug("{}",objectMapper.writeValueAsString(userEntity));
+        } catch (JsonProcessingException e) {
+            logger.warn("Could not write to json",e);
+        }
     }
 
     @BeforeStep

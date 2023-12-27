@@ -25,7 +25,7 @@ public class StringArrayToUserEntityTasklet implements Tasklet, StepExecutionLis
     https://www.baeldung.com/spring-batch-tasklet-chunk
      */
 
-    private static final Logger logger = LoggerFactory.getLogger(StringArrayToUserEntityItemProcessor.class);
+    private static final Logger logger = LoggerFactory.getLogger(StringArrayToUserLoadItemProcessor.class);
     private Function<String[], UserEntity> stringArrayToUserEntityFunction;
 
     private Resource inputResource;

@@ -8,13 +8,17 @@ import org.springframework.data.redis.core.RedisHash;
 import org.springframework.data.redis.core.index.Indexed;
 
 import java.util.Collection;
+import java.util.Objects;
 
+import static com.alpha.omega.user.service.ServiceUtils.ROLE_KEY_PREFIX;
+
+
+@RedisHash(ROLE_KEY_PREFIX)
 @Data
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @JsonIdentityInfo(
         generator = ObjectIdGenerators.PropertyGenerator.class,
         property = "id")
-@RedisHash("context:role")
 @NoArgsConstructor
 @AllArgsConstructor
 @ToString
@@ -28,4 +32,17 @@ public class RoleEntity {
     private String roleId;
     private String roleName;
     private Collection<String> permissions;
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        RoleEntity that = (RoleEntity) o;
+        return Objects.equals(roleId, that.roleId);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(roleId);
+    }
 }

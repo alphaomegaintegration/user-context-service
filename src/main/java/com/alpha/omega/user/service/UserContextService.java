@@ -20,12 +20,10 @@ public interface UserContextService {
 
     Flux<UserContext> getUserContextByContextId(String contextId);
 
-    Mono<UserContext> updateUserContextByContextId(String contextId, Mono<UserContext> context);
-
     Mono<UserContext> createUserContext(Mono<UserContext> userContext, String modifiedBy, String tranasactionId, Date createdDate);
     Mono<UserContextPage> createUserContextBatch(UserContextBatchRequest batchRequest, String auditUser, String transactionId);
     Mono<UserContext> addRoleToUserContext(String userId, String contextId, String roleIds,String auditUser);
-    Mono<UserContext> updateUserContextByUserContextId(Mono<UserContext> userContext, String auditUser, String transactionId);
+    Mono<UserContext> addPermissionsToUserContext(String userId, String contextId, String permissions,String auditUser);
     Mono<Void> deleteUserContextByUserContextId(String userContextId);
     Mono<UserContextPage> getAllUserContexts(PageRequest pageRequest);
     Mono<UserContextPage> getUserContextByContextId(PageRequest pageRequest, String contextId);

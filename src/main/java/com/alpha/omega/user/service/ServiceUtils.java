@@ -2,13 +2,17 @@ package com.alpha.omega.user.service;
 
 import com.alpha.omega.user.model.Context;
 import com.alpha.omega.user.model.Role;
+import com.alpha.omega.user.model.UserContext;
 import com.alpha.omega.user.repository.ContextEntity;
 import com.alpha.omega.user.repository.RoleDto;
 import com.alpha.omega.user.repository.RoleEntity;
+import com.alpha.omega.user.repository.UserContextEntity;
 import com.alpha.omega.user.validator.ServiceError;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeanUtils;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.data.redis.serializer.Jackson2JsonRedisSerializer;
 import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
@@ -17,6 +21,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+
+import static com.alpha.omega.user.utils.Constants.*;
 
 public class ServiceUtils {
     public final static int ONE = 1;
@@ -121,6 +127,42 @@ public class ServiceUtils {
                 return message;
             };
     }
+
+    public static final Jackson2JsonRedisSerializer JACKSON_2_JSON_REDIS_SERIALIZER_MAP = new Jackson2JsonRedisSerializer(Map.class);
+
+    final static ParameterizedTypeReference<Map<String, Object>> MAP_OBJECT_TYPE_REFERENCE = new ParameterizedTypeReference<Map<String, Object>>() {
+    };
+
+    public final static String CONTEXT_KEY_PREFIX = "contextEntity";
+    public final static String ALL_CONTEXT_KEY_PREFIX = CONTEXT_KEY_PREFIX+COLON+STAR;
+
+
+    public final static String calculateContextKey(String contextId) {
+        return new StringBuilder(CONTEXT_KEY_PREFIX)
+                .append(COLON)
+                .append(contextId).toString();
+    }
+
+    public final static String calculateUserContextKey(String userId, String contextId, String roleId){
+        return new StringBuilder(USER_CONTEXT_KEY_PREFIX).append(COLON)
+                .append("user").append(COLON).append(userId).append(COLON)
+                .append("context").append(COLON).append(contextId).append(COLON)
+                .append("role").append(COLON).append(roleId).toString();
+    }
+
+    public final static String calculateUserContextKey(UserContext ctx){
+        return calculateUserContextKey(ctx.getUserId(), ctx.getContextId(), ctx.getRoleId());
+    }
+
+
+    public final static String calculateUserContextKey(UserContextEntity ctx){
+        return calculateUserContextKey(ctx.getUserId(), ctx.getContextId(), ctx.getRoleId());
+    }
+
+
+    public final static String USER_CONTEXT_KEY_PREFIX = "userContextEntity";
+    public final static String ROLE_KEY_PREFIX = "roleEntity";
+    public final static String ALL_USER_CONTEXT_KEY_PREFIX = USER_CONTEXT_KEY_PREFIX+COLON+STAR;
 
     public static final BigDecimal ONE_THOUSAND = new BigDecimal(1000);
     public static final String ELAPSED_FORMAT_STR = "Seconds %.3f";

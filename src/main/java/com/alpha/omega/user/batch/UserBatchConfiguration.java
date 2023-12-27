@@ -1,16 +1,17 @@
 package com.alpha.omega.user.batch;
 
+import com.alpha.omega.user.delegate.UserDelegate;
+import com.alpha.omega.user.idprovider.keycloak.KeyCloakUserService;
+import com.alpha.omega.user.repository.UserContextRepository;
 import com.alpha.omega.user.repository.UserEntity;
 import com.alpha.omega.user.repository.UserRepository;
-import com.alpha.omega.user.utils.Constants;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.core.*;
-import org.springframework.batch.core.configuration.annotation.EnableBatchProcessing;
-import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.core.job.builder.JobBuilder;
+import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.batch.core.launch.support.CommandLineJobRunner;
 import org.springframework.batch.core.listener.ExecutionContextPromotionListener;
 import org.springframework.batch.core.repository.JobRepository;
@@ -19,16 +20,11 @@ import org.springframework.batch.item.*;
 import org.springframework.batch.item.file.FlatFileItemReader;
 import org.springframework.batch.item.file.LineMapper;
 import org.springframework.batch.item.file.mapping.ArrayFieldSetMapper;
-import org.springframework.batch.item.file.mapping.BeanWrapperFieldSetMapper;
 import org.springframework.batch.item.file.mapping.DefaultLineMapper;
-import org.springframework.batch.item.file.mapping.FieldSetMapper;
 import org.springframework.batch.item.file.transform.DelimitedLineTokenizer;
-import org.springframework.batch.item.file.transform.LineTokenizer;
 import org.springframework.batch.item.support.CompositeItemWriter;
-import org.springframework.batch.item.support.IteratorItemReader;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.boot.autoconfigure.couchbase.CouchbaseProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -37,21 +33,30 @@ import org.springframework.core.io.*;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
 
-import javax.crypto.SecretKey;
 import java.net.MalformedURLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 import static com.alpha.omega.user.batch.BatchConstants.PROMOTE_USER_ENTITY_CHUNK_KEY;
+import static com.alpha.omega.user.batch.BatchConstants.PROMOTE_USER_LOAD_CHUNK_KEY;
 import static com.alpha.omega.user.utils.Constants.COMMA;
 
 @Configuration
-@EnableConfigurationProperties(value = {KeyCloakUserItemWriter.KeyCloakIdpProperties.class})
-@EnableBatchProcessing
+@EnableConfigurationProperties(value = {KeyCloakUserService.KeyCloakIdpProperties.class})
+//@EnableBatchProcessing
 public class UserBatchConfiguration extends CommandLineJobRunner {
 
     private static final Logger logger = LoggerFactory.getLogger(UserBatchConfiguration.class);
+
+    @Value("${user.batch.load.chunk.size}")
+    Integer chunkSize;
+
+    @Bean
+    Function<UserLoad, UserEntity> defaultUserLoadUserEntityFunction() {
+        return BatchUtil.defaultUserLoadUserEntityFunction();
+    }
 
     @Bean
     IdempotentConsumer idempotentConsumer(StringRedisTemplate redisTemplate) {
@@ -80,9 +85,85 @@ public class UserBatchConfiguration extends CommandLineJobRunner {
     @Bean
     public ExecutionContextPromotionListener promotionListener() {
         ExecutionContextPromotionListener listener = new ExecutionContextPromotionListener();
-        listener.setKeys(new String[] {PROMOTE_USER_ENTITY_CHUNK_KEY});
+        listener.setKeys(new String[]{PROMOTE_USER_ENTITY_CHUNK_KEY, PROMOTE_USER_LOAD_CHUNK_KEY});
         return listener;
     }
+
+
+    @Bean
+    UserLoadToUserEntityItemProcessor userLoadToUserEntityItemProcessor(IdempotentConsumer idempotentConsumer, UserRepository userRepository) {
+        return UserLoadToUserEntityItemProcessor.builder()
+                .userRepository(userRepository)
+                .idempotentConsumer(idempotentConsumer)
+                .uniqueIdFunction(ue -> StringUtils.isNotBlank(ue.getExternalId()) ? ue.getExternalId() : UserLoadToUserEntityItemProcessor.calculateId(ue))
+                .build();
+    }
+
+    @Bean
+    public Step stepUserLoadToUserEntity(UserRepository userRepository,
+                                         UserContextRepository userContextRepository,
+                                         PlatformTransactionManager transactionManager,
+                                         JobRepository jobRepository) {
+
+        String name = "user.load.to.user.entity";
+
+        return new StepBuilder(name, jobRepository)
+                .tasklet(UserLoadToEntityTasklet.builder()
+                        .userContextRepository(userContextRepository)
+                        .userRepository(userRepository)
+                        .userLoadUserEntityFunction(BatchUtil.defaultUserLoadUserEntityFunction())
+                        .userLoadUserContextEntityFunction(BatchUtil.defaultUserLoadUserContextEntityFunction())
+                        .build(), transactionManager)
+                .build();
+    }
+
+    @Bean({"idProviderUserPersistence", "keyCloakUserItemWriter"})
+    KeyCloakUserService keyCloakUserItemWriter(KeyCloakUserService.KeyCloakIdpProperties keyCloakIdpProperties,
+                                               ObjectMapper objectMapper) {
+        return KeyCloakUserService.builder()
+                .keyCloakIdpProperties(keyCloakIdpProperties)
+                .objectMapper(objectMapper)
+                .userLoadUserEntityFunction(BatchUtil.defaultUserLoadUserEntityFunction())
+                .build();
+    }
+
+    @Bean
+    public Step stepUserLoadToIdProvider(KeyCloakUserService keyCloakUserService,
+                                         PlatformTransactionManager transactionManager,
+                                         JobRepository jobRepository) {
+
+        String name = "user.load.to.id.provider";
+
+        return new StepBuilder(name, jobRepository)
+                .tasklet(keyCloakUserService, transactionManager)
+                .build();
+    }
+
+    @Bean
+    UserLoadPromotionItemWriter userLoadPromotionItemWriter(){
+        return UserLoadPromotionItemWriter.builder()
+                .build();
+    }
+
+    @Bean
+    InMemoryBatchJobFactory inMemoryBatchJobFactory(PlatformTransactionManager transactionManager,
+                                                    JobRepository jobRepository,
+                                                    UserLoadPromotionItemWriter userLoadPromotionItemWriter,
+                                                    ExecutionContextPromotionListener promotionListener,
+                                                    Step stepUserLoadToIdProvider,
+                                                    Step stepUserLoadToUserEntity) {
+        return InMemoryBatchJobFactory.builder()
+                .jobRepository(jobRepository)
+                .transactionManager(transactionManager)
+                .promotionListener(promotionListener)
+                .stepUserLoadToUserEntity(stepUserLoadToUserEntity)
+                .stepUserLoadToIdProvider(stepUserLoadToIdProvider)
+                .chunkSize(chunkSize)
+                .stepName("read.from.batch.request")
+                .userLoadPromotionItemWriter(userLoadPromotionItemWriter)
+                .build();
+    }
+
 
 
     /*
@@ -99,17 +180,20 @@ public class UserBatchConfiguration extends CommandLineJobRunner {
      */
 
 
-    @ConditionalOnProperty(prefix="user.batch.load", name="name", havingValue="array", matchIfMissing = false)
+    @ConditionalOnProperty(prefix = "user.batch.load", name = "name", havingValue = "array", matchIfMissing = false)
     @Configuration
-    public static class StringArrayLoadConfig{
+    public static class StringArrayLoadConfig {
+
+        @Value("${user.batch.load.chunk.size}")
+        Integer chunkSize;
 
         @Bean
-        LineMapper<String[]> lineMapper(){
+        LineMapper<String[]> lineMapper() {
             DelimitedLineTokenizer lineTokenizer = new DelimitedLineTokenizer(COMMA);
             DefaultLineMapper<String[]> lineMapper = new DefaultLineMapper<>();
             lineMapper.setLineTokenizer(lineTokenizer);
             lineMapper.setFieldSetMapper(new ArrayFieldSetMapper());
-           return lineMapper;
+            return lineMapper;
         }
 
         @Bean
@@ -123,11 +207,11 @@ public class UserBatchConfiguration extends CommandLineJobRunner {
         }
 
         @Bean
-        Supplier<String> keyGenerator(){
+        Supplier<String> keyGenerator() {
             return new Supplier<String>() {
                 @Override
                 public String get() {
-                    String salt  = "pepper";
+                    String salt = "pepper";
                     String password = "fakePassword";
                     String secretKey = BatchUtil.generateSecretKeyString(password, salt);
                     return secretKey;
@@ -136,70 +220,54 @@ public class UserBatchConfiguration extends CommandLineJobRunner {
         }
 
         @Bean
-        public Step stepStringArrayLoad(IdempotentConsumer idempotentConsumer,
-                                        FlatFileItemReader<String[]> reader,
-                                 CompositeItemWriter<UserEntity> userCompositeItemWriter,
-                                        UserEntityItemWriter userEntityItemWriter,
-                                 PlatformTransactionManager transactionManager,
-                                 JobRepository jobRepository,
-                                        Supplier<String> keyGenerator,
-                                        ExecutionContextPromotionListener promotionListener) {
+        StringArrayToUserLoadItemProcessor processorWriter(IdempotentConsumer idempotentConsumer,
+                                                           Supplier<String> keyGenerator){
+            return StringArrayToUserLoadItemProcessor.builder()
+                    .idempotentConsumer(idempotentConsumer)
+                    .uniqueIdFunction(userEntity -> userEntity.getEmail())
+                    .passwordSupplier(keyGenerator)
+                    .build();
+        }
+
+        @Bean
+        public Step stepStringArrayToUserLoad(StringArrayToUserLoadItemProcessor processorWriter,
+                                              FlatFileItemReader<String[]> reader,
+                                              PlatformTransactionManager transactionManager,
+                                              JobRepository jobRepository,
+                                              ExecutionContextPromotionListener promotionListener) {
 
             String name = "csv.file.to.redis";
             return new StepBuilder(name, jobRepository)
-                    .<String[], UserEntity>chunk(100, transactionManager)
+                    .<String[], UserLoad>chunk(chunkSize, transactionManager)
                     .reader(reader)
-                    .processor(StringArrayToUserEntityItemProcessor.builder()
-                            .idempotentConsumer(idempotentConsumer)
-                            .uniqueIdFunction(userEntity -> userEntity.getEmail())
-                            .passwordSupplier(keyGenerator)
-                            .build())
-                    .writer(userEntityItemWriter)
+                    .processor(processorWriter)
+                    .writer(processorWriter)
                     .listener(promotionListener)
                     .build();
         }
 
-        @Bean
-        KeyCloakUserItemWriter keyCloakUserItemWriter(KeyCloakUserItemWriter.KeyCloakIdpProperties keyCloakIdpProperties,
-                                                      ObjectMapper objectMapper){
-            return KeyCloakUserItemWriter.builder()
-                    .keyCloakIdpProperties(keyCloakIdpProperties)
-                    .objectMapper(objectMapper)
-                    .build();
-        }
 
         @Bean
-        UserEntityListItemReader userEntityListItemReader(){
+        UserEntityListItemReader userEntityListItemReader() {
             return new UserEntityListItemReader();
         }
 
-        @Bean
-        public Job importToStringArrayJob(JobRepository jobRepository, Step stepStringArrayLoad,
-                                          PlatformTransactionManager transactionManager,
-                                          KeyCloakUserItemWriter keyCloakUserItemWriter,
-                                          UserEntityListItemReader userEntityListItemReader) {
-            return new JobBuilder("importToStringArrayJob", jobRepository)
-                    .start(stepStringArrayLoad)
-                    .next(new StepBuilder("write.to.idprovider", jobRepository)
-                            .<UserEntity, UserEntity>chunk(100, transactionManager)
-
-                                    .reader(userEntityListItemReader)
-//                            .processor(new ItemProcessor<UserEntity, UserEntity>() {
-//                                @Override
-//                                public UserEntity process(UserEntity item) throws Exception {
-//                                    return null;
-//                                }
-//                            })
-                            .writer(keyCloakUserItemWriter)
-                            .build())
-                    //.listener()
+        @Bean("csvJob")
+        public Job csvJob(JobRepository jobRepository, Step stepStringArrayToUserLoad,
+                          Step stepUserLoadToIdProvider,
+                          Step stepUserLoadToUserEntity) {
+            return new JobBuilder("import.to.string.array.job", jobRepository)
+                    .start(stepStringArrayToUserLoad)
+                    .next(stepUserLoadToUserEntity)
+                    .next(stepUserLoadToIdProvider)
+                   // .listener()
                     .build();
         }
     }
 
-    @ConditionalOnProperty(prefix="user.batch.load", name="env", havingValue="local", matchIfMissing = true)
+    @ConditionalOnProperty(prefix = "user.batch.load", name = "env", havingValue = "local", matchIfMissing = true)
     @Configuration
-    public static class EnvLoadConfig{
+    public static class EnvLoadConfig {
         @Bean
         WritableResource errorResource(Environment env) throws MalformedURLException {
             FileUrlResource resource = new FileUrlResource(env.getProperty("user.batch.error.resource"));
@@ -220,110 +288,27 @@ public class UserBatchConfiguration extends CommandLineJobRunner {
         }
     }
 
-
-
-    @ConditionalOnProperty(prefix="user.batch.load", name="name", havingValue="userload", matchIfMissing = true)
     @Configuration
-    public static class UserLoadConfig{
+    public static class BatchJobServiceConfig {
 
         @Bean
-        String[] csvHeaderNames(){
-            return new String[]{
-                    "title", "first", "last", "streetNumber", "streetName", "city", "state",
-                    "country", "postcode", "latitude", "longitude", "offset", "description", "email"
-            };
-        }
-
-        @Bean
-        public FlatFileItemReader<UserLoad> reader(
-                LineMapper<UserLoad> lineMapper, Resource sourceResource) {
-            var itemReader = new FlatFileItemReader<UserLoad>();
-            itemReader.setLineMapper(lineMapper);
-            itemReader.setResource(sourceResource);
-            itemReader.setLinesToSkip(1);
-            return itemReader;
-        }
-
-        @Bean
-        public DefaultLineMapper<UserLoad> lineMapper(LineTokenizer tokenizer,
-                                                      FieldSetMapper<UserLoad> fieldSetMapper) {
-            var lineMapper = new DefaultLineMapper<UserLoad>();
-            lineMapper.setLineTokenizer(tokenizer);
-            lineMapper.setFieldSetMapper(fieldSetMapper);
-            return lineMapper;
-        }
-
-        @Bean
-        public BeanWrapperFieldSetMapper<UserLoad> fieldSetMapper() {
-            var fieldSetMapper = new BeanWrapperFieldSetMapper<UserLoad>();
-            fieldSetMapper.setTargetType(UserLoad.class);
-            return fieldSetMapper;
-        }
-
-        @Bean
-        public DelimitedLineTokenizer tokenizer(String[] csvHeaderNames) {
-            var tokenizer = new DelimitedLineTokenizer();
-            tokenizer.setStrict(false);
-            tokenizer.setQuoteCharacter(Constants.DOUBLE_QUOTES);
-            tokenizer.setDelimiter(COMMA);
-            tokenizer.setNames(csvHeaderNames);
-            return tokenizer;
-        }
-
-        @Bean
-        UserLoadToUserEntityItemLifecycleListener userEntityItemLifecycleListener(UserRepository userRepository,
-                                                                                  WritableResource errorResource,
-                                                                                  WritableResource archiveResource,
-                                                                                  WritableResource sourceResource) {
-
-            return UserLoadToUserEntityItemLifecycleListener.builder()
-                    .userRepository(userRepository)
-                    .errorResource(errorResource)
-                    .archiveResource(archiveResource)
-                    .sourceResource(sourceResource)
+        BatchJobService batchJobService(Job csvJob, InMemoryBatchJobFactory inMemoryBatchJobFactory,
+                                        JobLauncher jobLauncher) {
+            return BatchJobService.builder()
+                    .jobLauncher(jobLauncher)
+                    .csvJob(csvJob)
+                    .inMemoryBatchJobFactory(inMemoryBatchJobFactory)
                     .build();
         }
 
         @Bean
-        UserLoadToUserEntityItemProcessor userEntityItemProcessor(IdempotentConsumer idempotentConsumer, UserRepository userRepository) {
-            return UserLoadToUserEntityItemProcessor.builder()
-                    .userRepository(userRepository)
-                    .idempotentConsumer(idempotentConsumer)
-                    .uniqueIdFunction(ue -> StringUtils.isNotBlank(ue.getExternalId()) ? ue.getExternalId() : UserLoadToUserEntityItemProcessor.calculateId(ue))
+        UserDelegate UserDelegate(BatchJobService batchJobService) {
+            return UserDelegate.builder()
+                    .batchJobService(batchJobService)
                     .build();
         }
 
-        @Bean
-        public Step stepUserLoad(ItemReader<UserLoad> reader,
-                                 UserLoadToUserEntityItemProcessor userLoadToUserEntityItemProcessor,
-                                 CompositeItemWriter<UserEntity> userCompositeItemWriter,
-                                 UserEntityItemWriter userEntityItemWriter,
-                                 PlatformTransactionManager transactionManager,
-                                 JobRepository jobRepository,
-                                 UserLoadToUserEntityItemLifecycleListener listener) {
-
-            String name = "INSERT CSV RECORDS To DB Step";
-            return new StepBuilder(name, jobRepository)
-                    .<UserLoad, UserEntity>chunk(100, transactionManager)
-                    .reader(reader)
-                    .processor(userLoadToUserEntityItemProcessor)
-                    .writer(userEntityItemWriter)
-                    .listener((StepExecutionListener) listener)
-                    .build();
-        }
-
-
-
-        @Bean
-        public Job importUserLoadJob(JobRepository jobRepository, Step stepUserLoad,
-                                     UserLoadToUserEntityItemLifecycleListener listener) {
-            return new JobBuilder("importUserLoadJob", jobRepository)
-                    .listener(listener)
-                    .start(stepUserLoad)
-                    .build();
-        }
     }
-
 
 
 }
