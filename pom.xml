@@ -29,6 +29,8 @@
         <maven.surefire.plugin.version>3.0.0-M7</maven.surefire.plugin.version>
         <gmaven-plus.plugin.version>3.0.2</gmaven-plus.plugin.version>
         <maven.surefire.plugin.version>3.0.0-M7</maven.surefire.plugin.version>
+        <image.repo.name>127418365645.dkr.ecr.us-east-1.amazonaws.com</image.repo.name>
+        <jkube.docker.push.registry>127418365645.dkr.ecr.us-east-1.amazonaws.com/rapid_containers</jkube.docker.push.registry>
     </properties>
     <dependencies>
         <dependency>
@@ -486,9 +488,28 @@
                 <artifactId>kubernetes-maven-plugin</artifactId>
                 <version>1.13.1</version>
                 <configuration>
+                    <resources>
+                        <ingress>
+                            <ingressRules>
+                                <ingressRule>
+                                    <host>foo.bar.com</host>
+                                    <paths>
+                                        <path>
+                                            <pathType>Prefix</pathType>
+                                            <path>/</path>
+                                            <serviceName>${project.artifactId}</serviceName>
+                                            <servicePort>8080</servicePort>
+                                        </path>
+                                    </paths>
+                                </ingressRule>
+                            </ingressRules>
+                        </ingress>
+                    </resources>
                     <images>
                         <image>
-                            <name>sse/demo-crud:latest</name>
+                            <!--name>${project.artifactId}:latest</name-->
+                            <alias>${project.artifactId}</alias>
+                            <name>${image.repo.name}/${project.artifactId}:latest</name>
                             <build>
                                 <from>openjdk:20-jdk</from>
 
