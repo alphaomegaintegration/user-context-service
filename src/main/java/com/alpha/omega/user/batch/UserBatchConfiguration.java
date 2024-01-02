@@ -5,7 +5,6 @@ import com.alpha.omega.user.idprovider.keycloak.KeyCloakUserService;
 import com.alpha.omega.user.repository.UserContextRepository;
 import com.alpha.omega.user.repository.UserEntity;
 import com.alpha.omega.user.repository.UserRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,6 +22,7 @@ import org.springframework.batch.item.file.mapping.ArrayFieldSetMapper;
 import org.springframework.batch.item.file.mapping.DefaultLineMapper;
 import org.springframework.batch.item.file.transform.DelimitedLineTokenizer;
 import org.springframework.batch.item.support.CompositeItemWriter;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -53,7 +53,7 @@ public class UserBatchConfiguration extends CommandLineJobRunner {
     @Value("${user.batch.load.chunk.size}")
     Integer chunkSize;
 
-    @Bean
+    @Bean("defaultUserLoadUserEntityFunction")
     Function<UserLoad, UserEntity> defaultUserLoadUserEntityFunction() {
         return BatchUtil.defaultUserLoadUserEntityFunction();
     }
@@ -117,15 +117,6 @@ public class UserBatchConfiguration extends CommandLineJobRunner {
                 .build();
     }
 
-    @Bean({"idProviderUserPersistence", "keyCloakUserItemWriter"})
-    KeyCloakUserService keyCloakUserItemWriter(KeyCloakUserService.KeyCloakIdpProperties keyCloakIdpProperties,
-                                               ObjectMapper objectMapper) {
-        return KeyCloakUserService.builder()
-                .keyCloakIdpProperties(keyCloakIdpProperties)
-                .objectMapper(objectMapper)
-                .userLoadUserEntityFunction(BatchUtil.defaultUserLoadUserEntityFunction())
-                .build();
-    }
 
     @Bean
     public Step stepUserLoadToIdProvider(KeyCloakUserService keyCloakUserService,
@@ -146,13 +137,13 @@ public class UserBatchConfiguration extends CommandLineJobRunner {
     }
 
     @Bean
-    InMemoryBatchJobFactory inMemoryBatchJobFactory(PlatformTransactionManager transactionManager,
-                                                    JobRepository jobRepository,
-                                                    UserLoadPromotionItemWriter userLoadPromotionItemWriter,
-                                                    ExecutionContextPromotionListener promotionListener,
-                                                    Step stepUserLoadToIdProvider,
-                                                    Step stepUserLoadToUserEntity) {
-        return InMemoryBatchJobFactory.builder()
+    UsersFromRequestPayloadBatchJobFactory inMemoryBatchJobFactory(PlatformTransactionManager transactionManager,
+                                                                   JobRepository jobRepository,
+                                                                   UserLoadPromotionItemWriter userLoadPromotionItemWriter,
+                                                                   ExecutionContextPromotionListener promotionListener,
+                                                                   Step stepUserLoadToIdProvider,
+                                                                   Step stepUserLoadToUserEntity) {
+        return UsersFromRequestPayloadBatchJobFactory.builder()
                 .jobRepository(jobRepository)
                 .transactionManager(transactionManager)
                 .promotionListener(promotionListener)
@@ -183,9 +174,17 @@ public class UserBatchConfiguration extends CommandLineJobRunner {
     @ConditionalOnProperty(prefix = "user.batch.load", name = "name", havingValue = "array", matchIfMissing = false)
     @Configuration
     public static class StringArrayLoadConfig {
+        @Autowired
+        Environment env;
 
         @Value("${user.batch.load.chunk.size}")
         Integer chunkSize;
+
+        @Value("${key.generator.salt}")
+        String keyGeneratorSalt;
+
+        @Value("${key.generator.password}")
+        String keyGeneratorPassword;
 
         @Bean
         LineMapper<String[]> lineMapper() {
@@ -213,7 +212,7 @@ public class UserBatchConfiguration extends CommandLineJobRunner {
                 public String get() {
                     String salt = "pepper";
                     String password = "fakePassword";
-                    String secretKey = BatchUtil.generateSecretKeyString(password, salt);
+                    String secretKey = BatchUtil.generateSecretKeyString(keyGeneratorPassword, keyGeneratorSalt);
                     return secretKey;
                 }
             };
@@ -292,12 +291,12 @@ public class UserBatchConfiguration extends CommandLineJobRunner {
     public static class BatchJobServiceConfig {
 
         @Bean
-        BatchJobService batchJobService(Job csvJob, InMemoryBatchJobFactory inMemoryBatchJobFactory,
+        BatchJobService batchJobService(Job csvJob, UsersFromRequestPayloadBatchJobFactory usersFromRequestPayloadBatchJobFactory,
                                         JobLauncher jobLauncher) {
             return BatchJobService.builder()
                     .jobLauncher(jobLauncher)
                     .csvJob(csvJob)
-                    .inMemoryBatchJobFactory(inMemoryBatchJobFactory)
+                    .usersFromRequestPayloadBatchJobFactory(usersFromRequestPayloadBatchJobFactory)
                     .build();
         }
 

@@ -1,37 +1,49 @@
 package com.alpha.omega.user.idprovider.keycloak;
 
-import com.alpha.omega.user.model.UserContextPermissions;
+import com.alpha.omega.security.SecurityUtils;
 import com.alpha.omega.user.service.UserContextRequest;
 import com.alpha.omega.user.service.UserContextService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.NoArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.authentication.*;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsChecker;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtValidators;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
+import org.springframework.web.reactive.function.BodyInserters;
+import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
+import reactor.netty.http.client.HttpClient;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
 
+import javax.annotation.PostConstruct;
 import java.time.Instant;
-import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
-import java.util.stream.Collectors;
+
+import static com.alpha.omega.security.SecurityConstants.BEARER_STARTS_WITH_FUNCTION;
+import static com.alpha.omega.user.idprovider.keycloak.KeyCloakUtils.*;
 
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class KeyCloakAuthenticationManager extends AbstractUserDetailsReactiveAuthenticationManager {
+
+    private static final Logger logger = LoggerFactory.getLogger(KeyCloakAuthenticationManager.class);
 
     public static final String KEY_CLOAK_DEFAULT_CONTEXT = "user-context-service";
     //private UserDetailsService userDetailsService;
@@ -40,18 +52,45 @@ public class KeyCloakAuthenticationManager extends AbstractUserDetailsReactiveAu
     private KeyCloakUserService keyCloakUserService;
     @Builder.Default
     private Scheduler scheduler = Schedulers.boundedElastic();
+    String realmBaseUrl;
+    String realmTokenUri;
+    String realmJwkSetUri;
+    String issuerURL;
+    String realmClientId;
+    String realmClientSecret;
 
+    WebClient webClient;
+    @Builder.Default
+    ObjectMapper objectMapper = new ObjectMapper();
+    JwtDecoder jwtDecoder;
 
-    Function<UserContextPermissions, UserDetails> convertToUserDetails(){
-        return userContextPermissions -> {
-            List<GrantedAuthority> grantedAuthorities = userContextPermissions.getPermissions()
-                    .stream()
-                    .map(SimpleGrantedAuthority::new)
-                    .collect(Collectors.toList());
+    @PostConstruct
+    public void init() {
 
-            UserDetails user = new User(userContextPermissions.getUserId(), null, grantedAuthorities);
-            return user;
-        };
+        /*
+        HttpClient httpClient = HttpClient
+                .create()
+                .baseUrl(realmBaseUrl)
+                .doOnError((req, ex) -> {
+                            logger.info("req.fullPath() => {}", req.fullPath());
+                        },
+                        (resp, ex) -> {
+                            logger.info("resp.status() => {}", resp.status().toString());
+                            throw (RuntimeException)ex;
+                        })
+                .wiretap(true);
+
+         */
+
+        webClient = WebClient.builder()
+                .baseUrl(realmBaseUrl)
+                .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_FORM_URLENCODED_VALUE)
+                //.clientConnector(new ReactorClientHttpConnector(httpClient))
+                .build();
+        NimbusJwtDecoder nimbusJwtDecoder = NimbusJwtDecoder.withJwkSetUri(realmJwkSetUri)
+                .build();
+        nimbusJwtDecoder.setJwtValidator(JwtValidators.createDefaultWithIssuer(issuerURL));
+        jwtDecoder = nimbusJwtDecoder;
     }
 
     @Override
@@ -64,19 +103,71 @@ public class KeyCloakAuthenticationManager extends AbstractUserDetailsReactiveAu
         return Mono.just(userContextRequest)
                 .publishOn(this.scheduler)
                 .flatMap(request -> userContextService.getUserContextByUserIdAndContextId(request))
-                .map(convertToUserDetails());
+                .map(SecurityUtils.convertUserContextPermissionsToUserDetails());
+    }
+
+    public Mono<Optional<Jwt>> passwordGrantLoginJwt(String username, String password) {
+
+        logger.info("using realmTokenUri => {}, realmClientId => {}", realmTokenUri, realmClientId);
+        logger.info("using realmClientSecret => {}, password => {}", realmClientSecret, password);
+        return webClient.post()
+                .uri(realmTokenUri)
+                .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_FORM_URLENCODED_VALUE)
+                .body(BodyInserters.fromFormData("grant_type", "password")
+                        .with("username", username)
+                        .with("password", password)
+                        .with("client_id", realmClientId)
+                        .with("client_secret", realmClientSecret)
+                        .with("scope","openid")
+                )
+                .exchangeToMono(response -> {
+                    logger.debug("response.statusCode() => {}",response.statusCode());
+                    if (response.statusCode().equals(HttpStatus.OK)) {
+                        return response.bodyToMono(MAP_OBJECT);
+                    }
+                    else {
+                        // Turn to error
+                        return response.createError();
+                    }
+                })
+                .doOnNext(map -> logger.info("Got map from keycloak => {}", map))
+                .map(convertResultMapToJwt(jwtDecoder));
+    }
+
+    public Mono<Optional<Jwt>> validLoginJwt(String token) {
+
+        return Mono.just(token)
+                .map(tk -> jwtDecoder.decode(tk))
+                .map(jwt -> Optional.of(jwt));
+
+    }
+
+    Function<Tuple2<Authentication, UserDetails>, Mono<Tuple2<UserDetails, Optional<Jwt>>>> basicAuthOrJwtAccess() {
+        return tuple -> {
+            final String username = tuple.getT1().getName();
+            final String presentedPassword = (String) tuple.getT1().getCredentials();
+            if (!BEARER_STARTS_WITH_FUNCTION.apply(presentedPassword)) {
+                //passwordGrantLoginJwt(username, presentedPassword).map(jwt -> Tuples.of(tuple.getT2(), jwt))
+                return passwordGrantLoginJwt(username, presentedPassword).map(jwt -> Tuples.of(tuple.getT2(), jwt));
+            } else {
+                return validLoginJwt(presentedPassword).map(jwt -> Tuples.of(tuple.getT2(), jwt));
+            }
+        };
     }
 
     // JwtAuthenticationToken
     @Override
-    public Mono<Authentication> authenticate(Authentication authentication) {
+    public Mono<Authentication> authenticate(final Authentication authentication) {
         String username = authentication.getName();
         String presentedPassword = (String) authentication.getCredentials();
         // @formatter:off
         return retrieveUser(username)
-                .doOnNext(userDetails -> defaultPreAuthenticationChecks(userDetails))
                 .publishOn(this.scheduler)
-                .flatMap(userDetails -> keyCloakUserService.passwordGrantLoginJwt(username, presentedPassword).map(jwt -> Tuples.of(userDetails, jwt)))
+                .doOnNext(userDetails -> defaultPreAuthenticationChecks(userDetails))
+
+                .map(userDetails -> Tuples.of(authentication, userDetails))
+                .flatMap(basicAuthOrJwtAccess())
+               // .flatMap(userDetails -> passwordGrantLoginJwt(username, presentedPassword).map(jwt -> Tuples.of(userDetails, jwt)))
                 .filter((tuple) -> tuple.getT2().isPresent())
                 .switchIfEmpty(Mono.defer(() -> Mono.error(new BadCredentialsException("Invalid Credentials"))))
                 .doOnNext(tuple -> defaultPostAuthenticationChecks(tuple.getT1()))

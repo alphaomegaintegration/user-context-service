@@ -885,7 +885,7 @@ paths:
     post:
       operationId: createUsers
       requestBody:
-        description: Create user with batch
+        description: Create users with batch
         required: true
         content:
           application/json:

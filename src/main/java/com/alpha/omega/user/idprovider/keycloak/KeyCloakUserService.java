@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.NoArgsConstructor;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.core.*;
@@ -18,40 +19,42 @@ import org.springframework.batch.repeat.RepeatStatus;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.*;
+import org.springframework.security.oauth2.core.OAuth2TokenValidator;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.ExchangeFilterFunction;
 import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
 
+import javax.annotation.PostConstruct;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import static com.alpha.omega.user.batch.BatchConstants.PROMOTE_USER_ENTITY_CHUNK_KEY;
 import static com.alpha.omega.user.batch.BatchConstants.PROMOTE_USER_LOAD_CHUNK_KEY;
 import static com.alpha.omega.user.batch.BatchUtil.basicAuthCredsFrom;
+import static com.alpha.omega.user.idprovider.keycloak.KeyCloakUtils.EMPTY_ACCESS_CREDS;
+import static com.alpha.omega.user.idprovider.keycloak.KeyCloakUtils.MAP_OBJECT;
 
 
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class KeyCloakUserService implements ItemWriter<UserEntity>, StepExecutionListener, Tasklet,
-        Consumer<UserLoad> {
+public class KeyCloakUserService implements ItemWriter<UserEntity>, StepExecutionListener, Tasklet{
 
-    private static final Logger logger = LoggerFactory.getLogger(KeyCloakUserService.class);
+    static final Logger logger = LoggerFactory.getLogger(KeyCloakUserService.class);
 
 
 /*
@@ -71,18 +74,20 @@ public class KeyCloakUserService implements ItemWriter<UserEntity>, StepExecutio
     Function<UserLoad, UserEntity> userLoadUserEntityFunction;
 
     Supplier<String> basicAuthCreds;
+    Supplier<String> passwordSupplier;
     JwtDecoder jwtDecoder;
 
-    final static Mono<Map<String, Object>> EMPTY_ACCESS_CREDS = Mono.empty();
-    final static ParameterizedTypeReference<Map<String, Object>> MAP_OBJECT = new ParameterizedTypeReference<Map<String, Object>>() {
-    };
+
 
     private List<UserEntity> userEntities;
 
     @Override
     public void beforeStep(StepExecution stepExecution) {
         logger.debug("Using keyCloakIdpProperties => {}", keyCloakIdpProperties);
-        jwtDecoder = NimbusJwtDecoder.withJwkSetUri(keyCloakIdpProperties.jwksetUri()).build();
+        NimbusJwtDecoder nimbusJwtDecoder = NimbusJwtDecoder.withJwkSetUri(keyCloakIdpProperties.jwksetUri())
+                .build();
+        nimbusJwtDecoder.setJwtValidator(JwtValidators.createDefaultWithIssuer(keyCloakIdpProperties.issuerUri));
+        jwtDecoder = nimbusJwtDecoder;
         webClient = WebClient.builder()
                 .filters(exchangeFilterFunctions -> {
                     //exchangeFilterFunctions.add(logRequest());
@@ -96,7 +101,7 @@ public class KeyCloakUserService implements ItemWriter<UserEntity>, StepExecutio
         logger.info("Using basic auth creds {} for username => {} password => {}",
                 new Object[]{basicAuthCreds.get(), keyCloakIdpProperties.adminClientId, keyCloakIdpProperties.adminClientSecret});
 
-        accessCreds = accessCreds();
+        accessCreds = adminCliAccessCreds();
         JobExecution jobExecution = stepExecution.getJobExecution();
         ExecutionContext jobContext = jobExecution.getExecutionContext();
         this.userEntities = (List<UserEntity>) jobContext.get(PROMOTE_USER_ENTITY_CHUNK_KEY);
@@ -119,8 +124,13 @@ public class KeyCloakUserService implements ItemWriter<UserEntity>, StepExecutio
         });
     }
 
-
-    private Mono<Map<String, Object>> accessCreds() {
+    /*
+    The adminCliAccessCreds() method for KeyCloak uses the admin-cli client_id and client_secret to obtain an access token
+    against the master realm tokenuri or /realms/master/protocol/openid-connect/token. The admin-cli client has to be
+    modified. This url walks through the changes needed for admin-cli.
+    https://www.mastertheboss.com/keycloak/how-to-use-keycloak-admin-rest-api/
+     */
+    private Mono<Map<String, Object>> adminCliAccessCreds() {
 
 
         return webClient.post()
@@ -138,7 +148,7 @@ public class KeyCloakUserService implements ItemWriter<UserEntity>, StepExecutio
     private Function<Map<String, Object>, Mono<Map<String, Object>>> validateAccess() {
 
         return access -> {
-            return isExpired(access) ? accessCreds() : EMPTY_ACCESS_CREDS;
+            return isExpired(access) ? adminCliAccessCreds() : EMPTY_ACCESS_CREDS;
         };
     }
 
@@ -156,15 +166,17 @@ public class KeyCloakUserService implements ItemWriter<UserEntity>, StepExecutio
     }
 
 
+    /*
+    Once you have received an access_token from the admin-cli client via the adminCliAccessCreds() method,
+    you can call into the specific keycloak realm to add users to that realm.
+     */
     Function<Tuple2<? extends UserEntity, Map<String, Object>>, Mono<ResponseEntity<Map<String, Object>>>> postUserRepresentation() {
-
-
         return tuple -> {
             return Mono.just(tuple.getT2())
                     .publishOn(Schedulers.boundedElastic())
                     .flatMap(creds -> webClient.post()
                             .uri(uriBuilder -> uriBuilder.path(keyCloakIdpProperties.userUri())
-                                    .build(Map.of("realm", "master")))
+                                    .build(Map.of("realm", tuple.getT1().getContextId())))
                             .headers(h -> h.setContentType(MediaType.APPLICATION_JSON))
                             .headers(h -> h.setBearerAuth((String) creds.get("access_token")))
                             .bodyValue(convertToUserRepresentation().apply(tuple.getT1()))
@@ -198,12 +210,12 @@ public class KeyCloakUserService implements ItemWriter<UserEntity>, StepExecutio
 
      */
 
-
-    Predicate<WebClientResponseException> httpExceptionPredicate() {
-        return exception -> {
-            boolean filter = Boolean.FALSE;
-
-            return filter;
+    Function<String, List<CredentialRepresentation>> listCredentialRepresentationFrom(){
+        return creds -> {
+            return StringUtils.isNotBlank(creds) ? Collections.singletonList(CredentialRepresentation.builder()
+                    .value(creds)
+                    .build())
+                    : Collections.emptyList();
         };
     }
 
@@ -214,9 +226,11 @@ public class KeyCloakUserService implements ItemWriter<UserEntity>, StepExecutio
                     .email(userEntity.getEmail())
                     .username(userEntity.getEmail())
                     .enabled(Boolean.TRUE)
+                    .emailVerified(Boolean.TRUE)
                     .lastName(userEntity.getLastName())
                     .firstName(userEntity.getFirstName())
                     .createdTimestamp(createdTime)
+                    .credentials(listCredentialRepresentationFrom().apply(userEntity.getPassword()))
                     .build();
         };
     }
@@ -229,9 +243,11 @@ public class KeyCloakUserService implements ItemWriter<UserEntity>, StepExecutio
                     .email(userLoad.getEmail())
                     .username(userLoad.getEmail())
                     .enabled(Boolean.TRUE)
+                    .emailVerified(Boolean.TRUE)
                     .lastName(userLoad.getLast())
                     .firstName(userLoad.getFirst())
                     .createdTimestamp(createdTime)
+                    .credentials(listCredentialRepresentationFrom().apply(userLoad.getPassword()))
                     .build();
         };
     }
@@ -241,16 +257,10 @@ public class KeyCloakUserService implements ItemWriter<UserEntity>, StepExecutio
 
         Flux.fromIterable(chunk.getItems())
                 .publishOn(Schedulers.boundedElastic())
-                .flatMap(userEntity -> Mono.zip(Mono.just(userEntity), accessCreds(),
+                .flatMap(userEntity -> Mono.zip(Mono.just(userEntity), adminCliAccessCreds(),
                         (ue, creds) -> Tuples.of(ue, creds)))
                 .flatMap(tpl -> postUserRepresentation().apply(tpl))
                 .subscribe();
-
-
-    }
-
-    public void writeUserLoad() throws Exception {
-
     }
 
     @Override
@@ -265,11 +275,6 @@ public class KeyCloakUserService implements ItemWriter<UserEntity>, StepExecutio
         Chunk<UserEntity> userEntityChunk = new Chunk<>(entities);
         write(userEntityChunk);
         return RepeatStatus.FINISHED;
-    }
-
-    @Override
-    public void accept(UserLoad userLoad) {
-
     }
 
     public Mono<Map<String, Object>> passwordGrantLogin(String username, String password) {
@@ -291,7 +296,6 @@ public class KeyCloakUserService implements ItemWriter<UserEntity>, StepExecutio
 
     public Mono<Optional<Jwt>> passwordGrantLoginJwt(String username, String password) {
 
-
         return webClient.post()
                 .uri(keyCloakIdpProperties.tokenUri())
                 .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_FORM_URLENCODED_VALUE)
@@ -302,20 +306,7 @@ public class KeyCloakUserService implements ItemWriter<UserEntity>, StepExecutio
                         .with("client_secret", keyCloakIdpProperties.clientSecret()))
                 .retrieve()
                 .bodyToMono(MAP_OBJECT)
-                .map(convertResultMapToJwt(jwtDecoder));
-    }
-
-    final static Function<Map<String, Object>,Optional<Jwt>> convertResultMapToJwt(JwtDecoder jwtDecoder) {
-        return map -> {
-            String accessToken = (String)map.get("access_token");
-            Jwt jwt = null;
-            try{
-                jwt = jwtDecoder.decode(accessToken);
-            } catch (Exception e){
-                logger.warn("Could not decode jwt!",e);
-            }
-            return Optional.ofNullable(jwt);
-        };
+                .map(KeyCloakUtils.convertResultMapToJwt(jwtDecoder));
     }
 
 
@@ -323,7 +314,7 @@ public class KeyCloakUserService implements ItemWriter<UserEntity>, StepExecutio
     public record KeyCloakIdpProperties(String clientId, String clientSecret, String baseUrl, String tokenUri,
                                         String userUri, String realm, String adminTokenUri, String adminUsername,
                                         String adminPassword, String adminClientId, String adminClientSecret,
-                                        String jwksetUri) {
+                                        String jwksetUri, String issuerUri) {
     }
 
     /*
@@ -337,13 +328,21 @@ public class KeyCloakUserService implements ItemWriter<UserEntity>, StepExecutio
 
      */
 
+    @Builder
     public record CredentialRepresentation(String id, String type, String value) {
     }
 
+    /*
+    https://www.keycloak.org/docs-api/22.0.1/rest-api/index.html#UserRepresentation
+     */
     @Builder
     public record UserRepresentation(String id, String email, String firstName, String lastName, Long createdTimestamp,
-                                     String username, Boolean enabled) {
+                                     String username, Boolean enabled, Boolean emailVerified,
+                                     List<CredentialRepresentation> credentials) {
     }
+
+
+
 
 
 }

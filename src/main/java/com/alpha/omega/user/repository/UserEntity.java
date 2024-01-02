@@ -9,6 +9,7 @@ import jakarta.validation.constraints.Size;
 import lombok.*;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.redis.core.RedisHash;
+import org.springframework.data.redis.core.index.Indexed;
 
 import java.io.Serializable;
 
@@ -30,14 +31,17 @@ public class UserEntity implements Serializable {
     @Id
     private String id;
     @NotBlank
+    @Indexed
     private String firstName;
     @NotBlank
+    @Indexed
     private String lastName;
     @NotBlank
     private String companyName;
     @NotBlank
     @Size(max = 50)
     @Email
+    @Indexed
     private String email;
     @NotBlank
     @Size(max = 120)
@@ -46,4 +50,5 @@ public class UserEntity implements Serializable {
     private String country;
     private String mailCode;
     private Long created;
+    private String contextId;
 }

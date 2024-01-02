@@ -1,5 +1,6 @@
 package com.alpha.omega.user;
 
+import com.alpha.omega.security.ClientRegistrationConfig;
 import com.alpha.omega.user.client.auth.Authentication;
 import com.alpha.omega.user.idprovider.keycloak.KeyCloakAuthenticationManager;
 import com.alpha.omega.user.idprovider.keycloak.KeyCloakUserService;
@@ -8,11 +9,11 @@ import com.alpha.omega.user.idprovider.keycloak.KeycloakJwtRolesReactiveConverte
 import com.alpha.omega.user.service.UserContextService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.*;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
+import org.springframework.core.env.Environment;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -23,6 +24,10 @@ import org.springframework.security.config.web.server.SecurityWebFiltersOrder;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.core.userdetails.MapReactiveUserDetailsService;
 import org.springframework.security.core.userdetails.ReactiveUserDetailsService;
+import org.springframework.security.oauth2.client.registration.ReactiveClientRegistrationRepository;
+import org.springframework.security.oauth2.client.web.server.DefaultServerOAuth2AuthorizationRequestResolver;
+import org.springframework.security.oauth2.client.web.server.ServerOAuth2AuthorizationRequestResolver;
+import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
 import org.springframework.security.oauth2.server.resource.authentication.DelegatingJwtGrantedAuthoritiesConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
@@ -52,11 +57,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Consumer;
 
 import static org.springframework.security.config.Customizer.withDefaults;
 
 @Configuration
 @EnableWebFluxSecurity
+@Import(value={ClientRegistrationConfig.class})
 public class SecurityConfig {
 
     /*
@@ -119,11 +126,16 @@ public class SecurityConfig {
      */
 
     @Bean("idProviderAuthenticationManager")
-    KeyCloakAuthenticationManager keyCloakAuthenticationManager(UserContextService userContextService, KeyCloakUserService keyCloakUserService){
+    KeyCloakAuthenticationManager keyCloakAuthenticationManager(UserContextService userContextService,
+                                                                KeyCloakUserService keyCloakUserService,
+                                                                Environment env){
         return KeyCloakAuthenticationManager.builder()
                 .userContextService(userContextService)
                 .keyCloakUserService(keyCloakUserService)
                 .defaultContext(KEY_CLOAK_DEFAULT_CONTEXT)
+                .realmBaseUrl(env.getProperty("idp.provider.keycloak.base-url"))
+                .realmJwkSetUri(env.getProperty("idp.provider.keycloak.jwkset-uri"))
+                .issuerURL(env.getProperty("idp.provider.keycloak.issuer-url"))
                 .build();
     }
 
@@ -178,6 +190,37 @@ public class SecurityConfig {
         authenticationFilter.setSecurityContextRepository(NoOpServerSecurityContextRepository.getInstance());
         return authenticationFilter;
         //http.addFilterAt(authenticationFilter, SecurityWebFiltersOrder.HTTP_BASIC);
+    }
+
+    @Autowired
+    private ReactiveClientRegistrationRepository clientRegistrationRepository;
+
+    @Bean
+    public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
+        http.authorizeExchange(authorize -> authorize.anyExchange().authenticated())
+                .oauth2Login(oauth2 -> oauth2
+                        .authorizationRequestResolver(
+                                authorizationRequestResolver(this.clientRegistrationRepository)
+                        )
+                );
+        return http.build();
+    }
+
+    private ServerOAuth2AuthorizationRequestResolver authorizationRequestResolver(
+            ReactiveClientRegistrationRepository clientRegistrationRepository) {
+
+        DefaultServerOAuth2AuthorizationRequestResolver authorizationRequestResolver =
+                new DefaultServerOAuth2AuthorizationRequestResolver(
+                        clientRegistrationRepository);
+        authorizationRequestResolver.setAuthorizationRequestCustomizer(
+                authorizationRequestCustomizer());
+
+        return  authorizationRequestResolver;
+    }
+
+    private Consumer<OAuth2AuthorizationRequest.Builder> authorizationRequestCustomizer() {
+        return customizer -> customizer
+                .additionalParameters(params -> params.put("prompt", "consent"));
     }
 
 }

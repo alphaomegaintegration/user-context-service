@@ -86,6 +86,7 @@ public class BatchUtil {
             userEntity.setMailCode(userLoad.getPostcode());
             userEntity.setEmail(userLoad.getEmail());
             userEntity.setCountry(userLoad.getCountry());
+            userEntity.setContextId(userEntity.getContextId());
             return userEntity;
         };
     }

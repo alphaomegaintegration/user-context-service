@@ -1,0 +1,31 @@
+version: '3.8'
+services:
+  cache:
+    image: redis:6.2-alpine
+    #image: redis:5.0.3-alpine
+    restart: always
+    ports:
+      - '6379:6379'
+    #command: redis-server --save 20 1 --loglevel warning --requirepass eYVX7EwVmmxKPCDmwMtyKVge8oLd2t81
+    command: redis-server /usr/local/etc/redis/redis.conf --loglevel verbose --save 20 1
+    volumes:
+      - cache:/data
+      - ./redis.conf:/usr/local/etc/redis/redis.conf
+      - $PWD/redis-data:/var/lib/redis
+
+  postgres2:
+    image: postgres
+    volumes:
+      - postgres_data2:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: batch
+      POSTGRES_USER: batchuser
+      POSTGRES_PASSWORD: password
+
+volumes:
+  cache:
+    driver: local
+  postgres_data:
+    driver: local
+  postgres_data2:
+    driver: local

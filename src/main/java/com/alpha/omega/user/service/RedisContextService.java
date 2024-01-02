@@ -4,15 +4,20 @@ import com.alpha.omega.user.model.*;
 import com.alpha.omega.user.repository.*;
 import com.alpha.omega.user.validator.ServiceError;
 import com.alpha.omega.user.validator.UserContextValidator;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.NoArgsConstructor;
 import org.apache.commons.collections4.IterableUtils;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeanUtils;
+import org.springframework.core.io.DefaultResourceLoader;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.ResourceLoader;
 import org.springframework.data.crossstore.ChangeSetPersister;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -22,20 +27,25 @@ import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.SynchronousSink;
+import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
 
+import java.io.InputStream;
 import java.io.NotActiveException;
+import java.nio.charset.Charset;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 import static com.alpha.omega.user.service.ServiceUtils.*;
+import static com.alpha.omega.user.utils.Constants.COMMA;
 
 @Builder
 @NoArgsConstructor
@@ -53,6 +63,8 @@ public class RedisContextService implements ContextService {
     RoleRepository roleRepository;
     ReactiveRedisOperations<String, ContextEntity> contextOps;
     ObjectMapper objectMapper;
+    @Builder.Default
+    ResourceLoader resourceLoader = new DefaultResourceLoader();
 
     /*
     final static Function<ContextEntity, ContextDto> convertContextEntityToDto = (contextEntity) -> {
@@ -163,6 +175,9 @@ public class RedisContextService implements ContextService {
 
     final static Function<Context, ContextEntity> convertContextToContextEntity() {
         return (context) -> {
+            if (context == null){
+                throw new IllegalArgumentException("Context cannot be null in convertContextToContextEntity");
+            }
             Date now = new Date();
             logger.info("Got context in convertContextToContextEntity => {}", context);
             ContextEntity contextEntity = new ContextEntity();
@@ -329,10 +344,13 @@ public class RedisContextService implements ContextService {
     public Mono<ContextEntity> findContextEntity(String contextId) {
         return Mono.just(contextId)
                 .publishOn(Schedulers.boundedElastic())
+                .doOnNext(ctx -> logger.info("-------- Got context id -> {}", ctx))
                 //.map(ctxId -> contextRepository.findByContextId(ctxId))
                 .map(ctxId -> contextRepository.findByContextId(ctxId))
+                .doOnNext(ctx -> logger.info("-------- Got context entity -> {}", ctx))
                 .switchIfEmpty(EMPTY_CONTEXT_ENTITY)
                 .doOnNext(ctx -> logger.info("-------- Got context entity -> {}", ctx));
+               // .subscribeOn(Schedulers.boundedElastic());
     }
 
     @Override
@@ -405,7 +423,6 @@ public class RedisContextService implements ContextService {
                                 .skip(calculateSkip.apply(pageRequest))
                                 .take(request.getPageSize()).collectList(),
                         (t1, t2) -> Tuples.of(t1, t2)))
-
                 .elapsed()
                 .map(tuplePage -> {
                     //Tuple2<Long, Iterable<ContextEntity>> tupleList = tuplePage.getT2();
@@ -483,8 +500,10 @@ public class RedisContextService implements ContextService {
     public Flux<Role> getRolesByContextIdAndRoleIdIn(String contextId, List<String> roleIds, boolean allRoles) {
 
         return Mono.just(Tuples.of(contextId, roleIds))
+                .publishOn(Schedulers.boundedElastic())
                 .flatMapMany(tuple -> findContextEntity(tuple.getT1()).map(ce -> ce.getRoles()))
-                .flatMap(col -> Flux.fromIterable(col))
+                .flatMapIterable(col -> col)
+                //.flatMap(col -> Flux.fromIterable(col))
                 .filter(role -> allRoles ? Boolean.TRUE : roleIds.contains(role.getRoleId()))
                 .map(roleEntityToRole);
     }
@@ -498,5 +517,45 @@ public class RedisContextService implements ContextService {
                                 .findFirst()))
                 .map(Optional::isPresent);
 
+    }
+
+    Optional<String> extractFileFromResource(Resource resource){
+        Optional<String> value = Optional.empty();
+        try {
+            System.out.println("In Try Block");
+            String fileStr = IOUtils.toString(resource.getInputStream(), Charset.defaultCharset());
+            value = Optional.of(fileStr);
+        } catch (Exception e) {
+            logger.warn("Could not extractFileFromResource {}",resource,e);
+
+        }
+        return value;
+    }
+
+    Function<Optional<String>, Optional<Context>> extractContextFromJson(){
+        return json -> {
+            Optional<Context> context = Optional.empty();
+            if (json.isPresent()){
+                try {
+                    context = Optional.of(objectMapper.readValue(json.get(), Context.class));
+                } catch (JsonProcessingException e) {
+                    logger.warn("Could not extractContextFromJson {}",json.get(),e);
+                }
+            }
+            return context;
+        };
+    }
+
+    final AtomicLong counter = new AtomicLong();
+
+    @Override
+    public Flux<Context> loadContexts(Scheduler scheduler, String contextsStr) {
+        logger.info("How many times is this called? {}",counter.incrementAndGet());
+        return Flux.fromArray(contextsStr.split(COMMA))
+                .publishOn(scheduler)
+                .map(resourcePath -> resourceLoader.getResource(resourcePath))
+                .map(resource -> extractFileFromResource(resource))
+                .map(extractContextFromJson())
+                .flatMap(optionalContext -> this.createContext(optionalContext.get()));
     }
 }

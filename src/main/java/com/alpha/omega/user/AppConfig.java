@@ -11,14 +11,15 @@ import com.alpha.omega.user.repository.*;
 import com.alpha.omega.user.server.ContextsApiController;
 //import com.alpha.omega.user.server.UsersApiController;
 import com.alpha.omega.user.server.UsercontextsApiController;
-import com.alpha.omega.user.service.ContextService;
-import com.alpha.omega.user.service.RedisContextService;
-import com.alpha.omega.user.service.RedisUserContextService;
-import com.alpha.omega.user.service.UserContextService;
+import com.alpha.omega.user.service.*;
 import com.alpha.omega.user.validator.UserContextValidator;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.batch.core.Job;
+import org.springframework.batch.core.Step;
+import org.springframework.batch.core.launch.JobLauncher;
+import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.autoconfigure.web.WebProperties;
@@ -33,6 +34,7 @@ import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
 import org.springframework.data.redis.repository.configuration.EnableRedisRepositories;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.codec.ServerCodecConfigurer;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.util.Assert;
 
 import javax.annotation.PostConstruct;
@@ -102,6 +104,7 @@ public class AppConfig {
                 .objectMapper(objectMapper)
                 .build();
     }
+
 
     @Bean
     ContextsDelegate contextsDelegate(ContextService contextService) {

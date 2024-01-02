@@ -13,7 +13,6 @@ import org.springframework.batch.core.repository.JobInstanceAlreadyCompleteExcep
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.repository.JobRestartException;
 
-import java.util.AbstractMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -27,7 +26,7 @@ public class BatchJobService {
     JobRepository jobRepository;
     JobLauncher jobLauncher;
     Job csvJob;
-    InMemoryBatchJobFactory inMemoryBatchJobFactory;
+    UsersFromRequestPayloadBatchJobFactory usersFromRequestPayloadBatchJobFactory;
 
     public BatchUserResponse startJob(BatchUserRequest batchUserRequest){
         Map<String, JobParameter<?>> jobsMap = batchUserRequest.getJobParameters().entrySet().stream()
@@ -58,7 +57,7 @@ public class BatchJobService {
             job = csvJob;
             validateCsvJobRequest(batchUserRequest);
         } else {
-            job = inMemoryBatchJobFactory.createJobFromRequest(batchUserRequest);
+            job = usersFromRequestPayloadBatchJobFactory.createJobFromRequest(batchUserRequest);
         }
         return job;
     }

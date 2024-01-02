@@ -7,6 +7,7 @@ import com.alpha.omega.user.model.RolePage;
 import org.springframework.data.domain.PageRequest;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Scheduler;
 
 import java.util.List;
 
@@ -28,4 +29,5 @@ public interface ContextService {
     Mono<Role> getRoleByContextIdAndRoleId(String contextId, String roleId);
     Flux<Role> getRolesByContextIdAndRoleIdIn(String contextId, List<String> roleIds, boolean allRoles);
     Mono<Boolean> roleExistsInContext(String roleId, String contextId);
+    Flux<Context> loadContexts(Scheduler scheduler, String contextsStr);
 }

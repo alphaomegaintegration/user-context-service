@@ -31,3 +31,4 @@ replay_pid*
 
 /target
 
+/src/test/groovy/com/alpha/omega/user/idprovider/keycloak/realm.env

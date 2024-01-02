@@ -83,7 +83,8 @@ public class DefaultRedisCacheConfiguration {
     @Primary
     public ReactiveRedisConnectionFactory connectionFactory() {
         String host = env.getProperty("REDIS_HOST", "localhost");
-        return new LettuceConnectionFactory(host, 6379);
+        Integer port = env.getProperty("REDIS_PORT", Integer.class,6379);
+        return new LettuceConnectionFactory(host, port);
     }
 
     @Bean

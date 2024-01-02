@@ -124,7 +124,7 @@ public class RedisUserContextService implements UserContextService {
         };
     }
 
-    BiConsumer<Tuple2<UserContextEntity, List<Role>>, SynchronousSink<Tuple2<UserContextEntity, List<Role>>>> whenUserContextEntityRolesEmpty(){
+    BiConsumer<Tuple2<UserContextEntity, List<Role>>, SynchronousSink<Tuple2<UserContextEntity, List<Role>>>> whenUserContextEntityRolesEmpty() {
         return (tuple, sink) -> {
             if (StringUtils.isBlank(tuple.getT1().getContextId())) {
                 sink.error(new IllegalArgumentException("Roles not found "));
@@ -143,13 +143,13 @@ public class RedisUserContextService implements UserContextService {
                 .publishOn(publisherSchedule)
                 .flatMap(uc -> Mono.zip(Mono.just(uc),
                         Mono.just(Optional.ofNullable(contextRepository.findByContextId(uc.getContextId())).orElse(new ContextEntity())),
-                        (t1, t2) -> Tuples.of(t1,t2)))
+                        (t1, t2) -> Tuples.of(t1, t2)))
                 .handle((tpl, sink) -> {
                     List<ServiceError> ServiceErrors = new ArrayList<>();
                     ContextEntity ctx = tpl.getT2();
-                    UserContext uc =  tpl.getT1();
+                    UserContext uc = tpl.getT1();
 
-                    if (StringUtils.isBlank(ctx.getContextId())){
+                    if (StringUtils.isBlank(ctx.getContextId())) {
                         ServiceErrors.add(ServiceError.builder()
                                 .property(Constants.CONTEXT_ID)
                                 .message(CONTEXT_DOES_NOT_EXIST + uc.getContextId())
@@ -356,7 +356,7 @@ public class RedisUserContextService implements UserContextService {
                 .map(convertUserContextEntityToUserContext());
     }
 
-    final static Mono<Tuple2<UserContextEntity, List<Role>>> USER_CONTEXT_ENTITY_LIST_TUPLE_2 = Mono.just(Tuples.of(new UserContextEntity(), Collections.emptyList())) ;
+    final static Mono<Tuple2<UserContextEntity, List<Role>>> USER_CONTEXT_ENTITY_LIST_TUPLE_2 = Mono.just(Tuples.of(new UserContextEntity(), Collections.emptyList()));
 
     final static Mono<Tuple2<UserContextEntity, ContextEntity>> USER_CONTEXT_ENTITY_CONTEXT_ENTITY_TUPLE_2 = Mono.just(Tuples.of(new UserContextEntity(), new ContextEntity()));
 
@@ -494,14 +494,15 @@ public class RedisUserContextService implements UserContextService {
 
          */
 
+        logger.info("userContextRepository is null {}", userContextRepository == null);
+
         return Mono.just(userContextRequest)
-                .publishOn(publisherSchedule)
+                .publishOn(Schedulers.boundedElastic())
                 .doOnNext(request -> logger.info("getUserContextByUserIdAndContextId request => {}", request))
                 .map(request -> userContextRepository.findByUserIdAndContextId(request.getUserId(), request.getContextId()).orElseThrow(() -> new UserNotFoundException("User Not Found", request)))
-                .flatMap(uce -> Mono.zip(Mono.from(roleIds.isEmpty() ? contextService.getRolesByContextIdAndRoleIdIn(uce.getContextId(), roleIds, Boolean.TRUE).collectList()
-                                : contextService.getRolesByContextIdAndRoleIdIn(uce.getContextId(), roleIds, Boolean.FALSE).collectList()),
-                        Mono.just(uce)
-                ))
+                .doOnNext(uce -> logger.info("Got uce => {}", uce))
+                .flatMap(uce -> contextService.getRolesByContextIdAndRoleIdIn(uce.getContextId(), roleIds, roleIds.isEmpty()).collectList()
+                        .map(roles -> Tuples.of(roles, uce)))
                 .elapsed()
                 .map(tuple -> {
                     Tuple2<List<Role>, UserContextEntity> tuple2 = tuple.getT2();
@@ -516,6 +517,8 @@ public class RedisUserContextService implements UserContextService {
                             .collect(Collectors.toList());
                     userContextPermissions.setPermissions(permissions);
                     return userContextPermissions;
-                });
+                })
+
+                .doOnNext(ucp -> logger.info("got ucp => {}", ucp.toString()));
     }
 }

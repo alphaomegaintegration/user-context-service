@@ -162,6 +162,7 @@ public class ServiceUtils {
 
     public final static String USER_CONTEXT_KEY_PREFIX = "userContextEntity";
     public final static String ROLE_KEY_PREFIX = "roleEntity";
+    public final static String CLIENT_REGISTRATION_KEY_PREFIX = "clientRegistrationEntity";
     public final static String ALL_USER_CONTEXT_KEY_PREFIX = USER_CONTEXT_KEY_PREFIX+COLON+STAR;
 
     public static final BigDecimal ONE_THOUSAND = new BigDecimal(1000);
