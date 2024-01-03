@@ -1,11 +1,11 @@
 package com.alpha.omega.user;
 
 import com.alpha.omega.security.ClientRegistrationConfig;
-import com.alpha.omega.user.client.auth.Authentication;
 import com.alpha.omega.user.idprovider.keycloak.KeyCloakAuthenticationManager;
 import com.alpha.omega.user.idprovider.keycloak.KeyCloakUserService;
-import com.alpha.omega.user.idprovider.keycloak.KeycloakJwtRolesConverter;
+import com.alpha.omega.user.idprovider.keycloak.KeyCloakUtils;
 import com.alpha.omega.user.idprovider.keycloak.KeycloakJwtRolesReactiveConverter;
+import com.alpha.omega.user.service.RedisUserContextService;
 import com.alpha.omega.user.service.UserContextService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -16,41 +16,22 @@ import org.springframework.core.annotation.Order;
 import org.springframework.core.env.Environment;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.ReactiveAuthenticationManager;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.web.server.SecurityWebFiltersOrder;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
-import org.springframework.security.core.userdetails.MapReactiveUserDetailsService;
-import org.springframework.security.core.userdetails.ReactiveUserDetailsService;
+import org.springframework.security.core.userdetails.*;
 import org.springframework.security.oauth2.client.registration.ReactiveClientRegistrationRepository;
 import org.springframework.security.oauth2.client.web.server.DefaultServerOAuth2AuthorizationRequestResolver;
 import org.springframework.security.oauth2.client.web.server.ServerOAuth2AuthorizationRequestResolver;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
-import org.springframework.security.oauth2.server.resource.authentication.DelegatingJwtGrantedAuthoritiesConverter;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
-import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
-import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.server.DelegatingServerAuthenticationEntryPoint;
 import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.security.web.server.authentication.*;
 import org.springframework.security.web.server.context.NoOpServerSecurityContextRepository;
 import org.springframework.security.web.server.util.matcher.*;
 
-import static com.alpha.omega.user.idprovider.keycloak.KeyCloakAuthenticationManager.KEY_CLOAK_DEFAULT_CONTEXT;
-import static org.springframework.web.reactive.function.client.ExchangeStrategies.withDefaults;
-
 
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
-import org.springframework.security.config.web.server.ServerHttpSecurity;
-import org.springframework.security.core.userdetails.MapReactiveUserDetailsService;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.web.server.SecurityWebFilterChain;
-import org.springframework.web.server.WebFilter;
 import reactor.core.publisher.Mono;
 
 import java.util.ArrayList;
@@ -58,8 +39,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Consumer;
-
-import static org.springframework.security.config.Customizer.withDefaults;
 
 @Configuration
 @EnableWebFluxSecurity
@@ -125,14 +104,25 @@ public class SecurityConfig {
 
      */
 
+    @Bean
+    ReactiveUserDetailsService userDetailsService(UserContextService userContextService){
+        return RedisUserContextService.RedisReactiveUserDetailsService.builder()
+                .userContextService(userContextService)
+                .contextId(KeyCloakUtils.KEY_CLOAK_DEFAULT_CONTEXT)
+                .build();
+    }
+
     @Bean("idProviderAuthenticationManager")
     KeyCloakAuthenticationManager keyCloakAuthenticationManager(UserContextService userContextService,
                                                                 KeyCloakUserService keyCloakUserService,
                                                                 Environment env){
         return KeyCloakAuthenticationManager.builder()
+                .defaultContext(KeyCloakUtils.KEY_CLOAK_DEFAULT_CONTEXT)
                 .userContextService(userContextService)
                 .keyCloakUserService(keyCloakUserService)
-                .defaultContext(KEY_CLOAK_DEFAULT_CONTEXT)
+                .realmClientId(env.getProperty("idp.provider.keycloak.client-id"))
+                .realmClientSecret(env.getProperty("idp.provider.keycloak.client-secret"))
+                .realmTokenUri(env.getProperty("idp.provider.keycloak.token-uri"))
                 .realmBaseUrl(env.getProperty("idp.provider.keycloak.base-url"))
                 .realmJwkSetUri(env.getProperty("idp.provider.keycloak.jwkset-uri"))
                 .issuerURL(env.getProperty("idp.provider.keycloak.issuer-url"))
@@ -146,8 +136,8 @@ public class SecurityConfig {
                                                      KeyCloakUserService.KeyCloakIdpProperties keyCloakIdpProperties) {
         // @formatter:off
         http.authorizeExchange((authorize) -> authorize
-                        .pathMatchers("/**").permitAll()
-                        //.anyExchange().authenticated()
+                        //.pathMatchers("/**").permitAll()
+                        .anyExchange().authenticated()
                 )
                 .httpBasic(httpBasicSpec -> httpBasicSpec.authenticationManager(authenticationManager));
               //  .formLogin((form) -> form
@@ -161,6 +151,7 @@ public class SecurityConfig {
                     .jwkSetUri(keyCloakIdpProperties.jwksetUri()))
 
         );
+        http.authenticationManager(authenticationManager);
         http.csrf(csrfSpec -> csrfSpec.disable());
         return http.build();
     }

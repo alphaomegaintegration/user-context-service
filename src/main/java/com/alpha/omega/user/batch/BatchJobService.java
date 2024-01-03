@@ -14,6 +14,7 @@ import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.repository.JobRestartException;
 
 import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Builder
@@ -27,6 +28,19 @@ public class BatchJobService {
     JobLauncher jobLauncher;
     Job csvJob;
     UsersFromRequestPayloadBatchJobFactory usersFromRequestPayloadBatchJobFactory;
+
+    Function<JobExecution, BatchUserResponse> convertToBatchUserResponse(){
+        return jobExecution -> {
+            return BatchUserResponse.builder()
+                    //.jobExecution(jobExecution)
+                    .jobInstance(jobExecution.getJobInstance())
+                    .createTime(jobExecution.getCreateTime())
+                    .executionContext(jobExecution.getExecutionContext())
+                    .exitStatus(jobExecution.getExitStatus())
+                    .jobName(jobExecution.getJobInstance().getJobName())
+                    .build();
+        };
+    }
 
     public BatchUserResponse startJob(BatchUserRequest batchUserRequest){
         Map<String, JobParameter<?>> jobsMap = batchUserRequest.getJobParameters().entrySet().stream()
@@ -45,10 +59,9 @@ public class BatchJobService {
         } catch (JobParametersInvalidException e) {
             throw new RuntimeException(e);
         }
-        logger.info("JobExecution => {}",jobExecution.toString());
-        return BatchUserResponse.builder()
-             //   .jobExecution(jobExecution)
-                .build();
+        logger.debug("JobExecutionId => {}",jobExecution.getJobId());
+
+        return convertToBatchUserResponse().apply(jobExecution);
     }
 
     private Job extractJobFromRequest(BatchUserRequest batchUserRequest) {
@@ -78,9 +91,7 @@ public class BatchJobService {
         Job job = extractJobFromRequest(batchUserRequest);
         jobsMap.put(Constants.CORRELATION_ID, new JobParameter<>(batchUserRequest.getCorrelationId(), String.class));
         JobExecution jobExecution = jobRepository.getLastJobExecution(job.getName(), new JobParameters(jobsMap));
-        return BatchUserResponse.builder()
-                .jobExecution(jobExecution)
-                .build();
+        return convertToBatchUserResponse().apply(jobExecution);
     }
 
 }

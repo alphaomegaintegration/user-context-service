@@ -27,8 +27,20 @@ public class UserDelegate implements UsersApiDelegate {
     public Mono<ResponseEntity<BatchUserResponse>> createUsers(Mono<BatchUserRequest> body, ServerWebExchange exchange) {
         return Mono.from(body)
                 .publishOn(Schedulers.boundedElastic())
-                .doOnNext(batchUserRequest -> logger.info("Got job request => {}",batchUserRequest))
+                .doOnNext(batchUserRequest -> logger.debug("Got job request => {}",batchUserRequest))
                 .map(request -> batchJobService.startJob(request))
+                .map(response -> ResponseEntity.ok(response));
+    }
+
+    @Override
+    public Mono<ResponseEntity<BatchUserResponse>> getBatchJobStatus(String jobName, String correlationId, ServerWebExchange exchange) {
+        return Mono.just(BatchUserRequest.builder()
+                        .correlationId(correlationId)
+                        .jobName(jobName)
+                        .build())
+                .publishOn(Schedulers.boundedElastic())
+                .doOnNext(batchUserRequest -> logger.debug("Got job request => {}",batchUserRequest))
+                .map(request -> batchJobService.getJobExecution(request))
                 .map(response -> ResponseEntity.ok(response));
     }
 }

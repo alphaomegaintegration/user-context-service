@@ -44,7 +44,7 @@ public class UserLoadToUserEntityItemProcessor implements ItemProcessor<UserLoad
         UserEntity userEntity = userLoadUserEntityFunction.apply(item);
         String uniqueId = uniqueIdFunction.apply(userEntity);
         boolean isProcessed = idempotentConsumer.isProcessed(uniqueId);
-        logger.info("Checking uniqueId => {} is processed => {}",uniqueId,isProcessed);
+        logger.debug("Checking uniqueId => {} is processed => {}",uniqueId,isProcessed);
         if (isProcessed){
             return null;
         }

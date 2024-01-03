@@ -48,7 +48,7 @@ public class UserContextDelegate implements UsercontextsApi, UsercontextsApiDele
     @Override
     public Mono<ResponseEntity<UserContext>> addPermissionsToUserContext(String userId, String contextId, String cacheControl, String additionalPermissions, ServerWebExchange exchange) {
         return userContextService.addPermissionsToUserContext(userId, contextId, additionalPermissions, null)
-                .doOnNext(ctx -> logger.info("Got addRoleToUserContext  => {}", ctx))
+                .doOnNext(ctx -> logger.debug("Got addRoleToUserContext  => {}", ctx))
                 .map(val -> {
                     if (StringUtils.isBlank(val.getContextId())) {
                         return ResponseEntity.status(HttpStatus.OK)
@@ -65,7 +65,7 @@ public class UserContextDelegate implements UsercontextsApi, UsercontextsApiDele
     @Override
     public Mono<ResponseEntity<UserContext>> addRoleToUserContext(String userId, String contextId, String roleId, String cacheControl, String additionalPermissions, ServerWebExchange exchange) {
         return userContextService.addRoleToUserContext(userId, contextId, roleId, null)
-                .doOnNext(ctx -> logger.info("Got addRoleToUserContext  => {}", ctx))
+                .doOnNext(ctx -> logger.debug("Got addRoleToUserContext  => {}", ctx))
                 .map(val -> {
                     if (StringUtils.isBlank(val.getContextId())) {
                         return ResponseEntity.status(HttpStatus.OK)
@@ -88,7 +88,7 @@ public class UserContextDelegate implements UsercontextsApi, UsercontextsApiDele
 
         //return Mono.from(userContext).publishOn(Schedulers.boundedElastic()).flatMap(uc -> userContextService.createUserContext(uc))
         return userContextService.createUserContext(userContext, null, extractCorrelationId(exchange), new Date())
-                .doOnNext(ctx -> logger.info("Got createUserContext  => {}", ctx))
+                .doOnNext(ctx -> logger.debug("Got createUserContext  => {}", ctx))
                 .map(val -> {
                     if (StringUtils.isNotBlank(val.getContextId())) {
                         return ResponseEntity.status(HttpStatus.OK)
@@ -110,7 +110,7 @@ public class UserContextDelegate implements UsercontextsApi, UsercontextsApiDele
     @Override
     public Mono<ResponseEntity<Void>> deleteUserContextByUserContextId(String usercontextId, ServerWebExchange exchange) {
         return userContextService.deleteUserContextByUserContextId(usercontextId)
-                .doOnNext(contextPage -> logger.info("Got getAllUserContexts page => {}", contextPage))
+                .doOnNext(contextPage -> logger.debug("Got getAllUserContexts page => {}", contextPage))
                 .map(val -> {
                     if (val != null) {
                         return ResponseEntity.status(HttpStatus.OK)
@@ -127,7 +127,7 @@ public class UserContextDelegate implements UsercontextsApi, UsercontextsApiDele
     @Override
     public Mono<ResponseEntity<UserContextPage>> getAllUserContexts(Integer page, Integer pageSize, String direction, String cacheControl, ServerWebExchange exchange) {
         return userContextService.getAllUserContextEntities(PageRequest.of(page, pageSize))
-                .doOnNext(contextPage -> logger.info("Got getAllUserContexts page => {}", contextPage))
+                .doOnNext(contextPage -> logger.debug("Got getAllUserContexts page => {}", contextPage))
 //                .map(cPage -> ResponseEntity.status(HttpStatus.OK)
 //                        .headers(headers -> headers.add(CORRELATION_ID, exchange.getAttribute(CORRELATION_ID)))
 //                        .body(cPage))
@@ -147,7 +147,7 @@ public class UserContextDelegate implements UsercontextsApi, UsercontextsApiDele
     @Override
     public Mono<ResponseEntity<UserContextPage>> getUserContextByContextId(String contextId, String cacheControl, Integer page, Integer pageSize, String direction, ServerWebExchange exchange) {
         return userContextService.getUserContextByContextId(PageRequest.of(page, pageSize), contextId)
-                .doOnNext(contextPage -> logger.info("Got getAllUserContexts page => {}", contextPage))
+                .doOnNext(contextPage -> logger.debug("Got getAllUserContexts page => {}", contextPage))
                 .map(val -> {
                     if (val != null) {
                         return ResponseEntity.status(HttpStatus.OK)
@@ -192,7 +192,7 @@ public class UserContextDelegate implements UsercontextsApi, UsercontextsApiDele
                         .allRoles(allRoles)
                         .cacheControl(cacheControl)
                         .build())
-                .doOnNext(userContextPermissions -> logger.info("Got getAllUserContexts page => {}", userContextPermissions))
+                .doOnNext(userContextPermissions -> logger.debug("Got getAllUserContexts page => {}", userContextPermissions))
 //                .map(cPage -> ResponseEntity.status(HttpStatus.OK)
 //                        .headers(headers -> headers.add(CORRELATION_ID, exchange.getAttribute(CORRELATION_ID)))
 //                        .body(cPage))
@@ -213,7 +213,7 @@ public class UserContextDelegate implements UsercontextsApi, UsercontextsApiDele
     public Mono<ResponseEntity<UserContext>> updateUserContext(String usercontextId, Mono<UserContext> userContext, ServerWebExchange exchange) {
         return Mono.from(userContext)
                 .flatMap(uc -> userContextService.updateUserContext(uc))
-                .doOnNext(contextPage -> logger.info("Got updateUserContext => {}", contextPage))
+                .doOnNext(contextPage -> logger.debug("Got updateUserContext => {}", contextPage))
                 .map(val -> {
                     if (val != null) {
                         return ResponseEntity.status(HttpStatus.OK)

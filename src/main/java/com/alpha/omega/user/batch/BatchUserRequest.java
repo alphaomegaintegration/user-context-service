@@ -20,4 +20,6 @@ public class BatchUserRequest {
     Map<String,String> jobParameters;
     @ApiModelProperty(required = false, value = "")
     List<UserLoad> users;
+    @ApiModelProperty(required = false, value = "")
+    String jobName;
 }

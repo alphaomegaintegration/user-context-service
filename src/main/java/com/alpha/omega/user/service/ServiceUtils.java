@@ -8,14 +8,17 @@ import com.alpha.omega.user.repository.RoleDto;
 import com.alpha.omega.user.repository.RoleEntity;
 import com.alpha.omega.user.repository.UserContextEntity;
 import com.alpha.omega.user.validator.ServiceError;
+import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeanUtils;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.core.io.Resource;
 import org.springframework.data.redis.serializer.Jackson2JsonRedisSerializer;
 import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
+import java.nio.charset.Charset;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -25,9 +28,12 @@ import java.util.stream.Collectors;
 import static com.alpha.omega.user.utils.Constants.*;
 
 public class ServiceUtils {
+
+    static final Logger logger = LoggerFactory.getLogger(ServiceUtils.class);
+
     public final static int ONE = 1;
     public final static DateTimeFormatter SERVICE_DATETIME_FORMATTER = DateTimeFormatter.ISO_ZONED_DATE_TIME.withZone(ZoneId.of("UTC"));
-    private static final Logger logger = LoggerFactory.getLogger(ServiceUtils.class);
+
     public final static String ADMIN = "ADMIN";
     public final static String ADMIN_LOWERCASE = ADMIN.toLowerCase();
     public final static Set<String> adminPerms = Collections.singleton(ADMIN);
@@ -102,7 +108,7 @@ public class ServiceUtils {
 
 
     public final static Function<ContextEntity, Context> convertContextEntityToContext = (contextEntity) -> {
-        logger.info("Got context in convertContextToDto => {}", contextEntity);
+        logger.debug("Got context in convertContextToDto => {}", contextEntity);
         Context context = new Context();
         BeanUtils.copyProperties(contextEntity, context);
         context.setPermissions(new HashSet<>(contextEntity.getPermissions()));
@@ -175,5 +181,17 @@ public class ServiceUtils {
     public static final String USER_CONTEXT_NOT_FOUND_FOR_USER_CONTEXT_ID = USER_CONTEXT_NOT_FOUND +"for userContextId %s";
     public static final Mono<ContextEntity> getEmptyMonoContextEntity(){
         return Mono.just(new ContextEntity());
+    }
+
+    public final static Optional<String> extractFileAsStringFromResource(Resource resource){
+        Optional<String> value = Optional.empty();
+        try {
+            String fileStr = IOUtils.toString(resource.getInputStream(), Charset.defaultCharset());
+            value = Optional.of(fileStr);
+        } catch (Exception e) {
+            logger.warn("Could not extractFileFromResource {}",resource,e);
+
+        }
+        return value;
     }
 }

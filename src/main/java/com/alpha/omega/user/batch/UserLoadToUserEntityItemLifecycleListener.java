@@ -87,7 +87,7 @@ public class UserLoadToUserEntityItemLifecycleListener extends StepListenerSuppo
             FlatFileParseException filEx = (FlatFileParseException)ex;
             ex.getCause().printStackTrace();
             String buildCsVErrorLine = buildCsvErrorLine(filEx);
-            logger.info("--------Got csvLine => {}",buildCsVErrorLine);
+            logger.info("--------UserLoadToUserEntityItemLifecycleListener Got csvLine => {}",buildCsVErrorLine);
             errorPrintWriter.println(buildCsVErrorLine);
             errorPrintWriter.flush();
         }
@@ -119,7 +119,7 @@ public class UserLoadToUserEntityItemLifecycleListener extends StepListenerSuppo
 
     @Override
     public void beforeJob(JobExecution jobExecution) {
-        logger.info("######## beforeJob => {}",jobExecution);
+        logger.debug("######## UserLoadToUserEntityItemLifecycleListener beforeJob => {}",jobExecution);
         JobExecutionListener.super.beforeJob(jobExecution);
         try {
             this.errorPrintWriter = new PrintWriter(errorResource.getOutputStream());
@@ -131,7 +131,7 @@ public class UserLoadToUserEntityItemLifecycleListener extends StepListenerSuppo
     @Override
     public void afterJob(JobExecution jobExecution) {
 
-        logger.info("afterJob => {}",jobExecution.toString());
+        logger.debug("UserLoadToUserEntityItemLifecycleListener afterJob => {}",jobExecution.toString());
         try {
             saveAsFile(archiveResource.getURL().getPath());
             errorPrintWriter.close();
@@ -142,7 +142,7 @@ public class UserLoadToUserEntityItemLifecycleListener extends StepListenerSuppo
 
     public FileInfo saveAsFile(String destPath) throws IOException {
 
-        logger.info("archiveResource.getURL() => {}",destPath);
+        logger.debug("archiveResource.getURL() => {}",destPath);
         final Path path = Paths.get(destPath);
         if (!Files.exists(path)) {
             logger.info("File NOT exist, create it and it's missing parent folder :{}", path);
@@ -160,7 +160,7 @@ public class UserLoadToUserEntityItemLifecycleListener extends StepListenerSuppo
                 .lastModified(new Date(path.toFile().lastModified()))
                 .build();
 
-        logger.info("saved file to {}, file is:{}", path, fileInfo);
+        logger.debug("saved file to {}, file is:{}", path, fileInfo);
         return fileInfo;
     }
 

@@ -5,6 +5,7 @@ import com.alpha.omega.user.idprovider.keycloak.KeyCloakUserService;
 import com.alpha.omega.user.repository.UserContextRepository;
 import com.alpha.omega.user.repository.UserEntity;
 import com.alpha.omega.user.repository.UserRepository;
+import com.alpha.omega.user.service.ServiceUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -103,7 +104,8 @@ public class UserBatchConfiguration extends CommandLineJobRunner {
     public Step stepUserLoadToUserEntity(UserRepository userRepository,
                                          UserContextRepository userContextRepository,
                                          PlatformTransactionManager transactionManager,
-                                         JobRepository jobRepository) {
+                                         JobRepository jobRepository,
+                                         ExecutionContextPromotionListener promotionListener) {
 
         String name = "user.load.to.user.entity";
 
@@ -114,6 +116,8 @@ public class UserBatchConfiguration extends CommandLineJobRunner {
                         .userLoadUserEntityFunction(BatchUtil.defaultUserLoadUserEntityFunction())
                         .userLoadUserContextEntityFunction(BatchUtil.defaultUserLoadUserContextEntityFunction())
                         .build(), transactionManager)
+
+                .listener(promotionListener)
                 .build();
     }
 
@@ -259,6 +263,7 @@ public class UserBatchConfiguration extends CommandLineJobRunner {
                     .start(stepStringArrayToUserLoad)
                     .next(stepUserLoadToUserEntity)
                     .next(stepUserLoadToIdProvider)
+                    //.next()
                    // .listener()
                     .build();
         }
@@ -292,11 +297,19 @@ public class UserBatchConfiguration extends CommandLineJobRunner {
 
         @Bean
         BatchJobService batchJobService(Job csvJob, UsersFromRequestPayloadBatchJobFactory usersFromRequestPayloadBatchJobFactory,
-                                        JobLauncher jobLauncher) {
+                                        JobLauncher jobLauncher, JobRepository jobRepository) {
             return BatchJobService.builder()
                     .jobLauncher(jobLauncher)
                     .csvJob(csvJob)
                     .usersFromRequestPayloadBatchJobFactory(usersFromRequestPayloadBatchJobFactory)
+                    .jobRepository(jobRepository)
+                    .build();
+        }
+
+        @Bean
+        ServiceAccountLoader serviceAccountLoader(BatchJobService batchJobService){
+            return ServiceAccountLoader.builder()
+                    .batchJobService(batchJobService)
                     .build();
         }
 

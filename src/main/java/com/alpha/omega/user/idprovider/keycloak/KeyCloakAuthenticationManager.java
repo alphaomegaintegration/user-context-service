@@ -26,12 +26,12 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
-import reactor.netty.http.client.HttpClient;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
 
 import javax.annotation.PostConstruct;
 import java.time.Instant;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 
@@ -43,9 +43,11 @@ import static com.alpha.omega.user.idprovider.keycloak.KeyCloakUtils.*;
 @AllArgsConstructor
 public class KeyCloakAuthenticationManager extends AbstractUserDetailsReactiveAuthenticationManager {
 
+    /*
+    AbstractUserDetailsReactiveAuthenticationManager
+     */
     private static final Logger logger = LoggerFactory.getLogger(KeyCloakAuthenticationManager.class);
 
-    public static final String KEY_CLOAK_DEFAULT_CONTEXT = "user-context-service";
     //private UserDetailsService userDetailsService;
     private String defaultContext;
     private UserContextService userContextService;
@@ -108,11 +110,19 @@ public class KeyCloakAuthenticationManager extends AbstractUserDetailsReactiveAu
 
     public Mono<Optional<Jwt>> passwordGrantLoginJwt(String username, String password) {
 
+        return passwordGrantLoginMap(username, password)
+                .map(convertResultMapToJwt(jwtDecoder));
+    }
+
+
+    public Mono<Map<String,Object>> passwordGrantLoginMap(String username, String password) {
+
         logger.info("using realmTokenUri => {}, realmClientId => {}", realmTokenUri, realmClientId);
         logger.info("using realmClientSecret => {}, password => {}", realmClientSecret, password);
         return webClient.post()
                 .uri(realmTokenUri)
                 .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_FORM_URLENCODED_VALUE)
+                .header(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
                 .body(BodyInserters.fromFormData("grant_type", "password")
                         .with("username", username)
                         .with("password", password)
@@ -130,8 +140,7 @@ public class KeyCloakAuthenticationManager extends AbstractUserDetailsReactiveAu
                         return response.createError();
                     }
                 })
-                .doOnNext(map -> logger.info("Got map from keycloak => {}", map))
-                .map(convertResultMapToJwt(jwtDecoder));
+                .doOnNext(map -> logger.info("Got map from keycloak => {}", map));
     }
 
     public Mono<Optional<Jwt>> validLoginJwt(String token) {

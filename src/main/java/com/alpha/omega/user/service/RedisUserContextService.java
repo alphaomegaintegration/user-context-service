@@ -1,5 +1,6 @@
 package com.alpha.omega.user.service;
 
+import com.alpha.omega.security.SecurityUtils;
 import com.alpha.omega.user.exception.ContextNotFoundException;
 import com.alpha.omega.user.exception.UserNotFoundException;
 import com.alpha.omega.user.model.*;
@@ -16,6 +17,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeanUtils;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
+import org.springframework.security.core.userdetails.ReactiveUserDetailsService;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.SynchronousSink;
@@ -88,7 +93,7 @@ public class RedisUserContextService implements UserContextService {
     }
 
     BiConsumer<UserContext, SynchronousSink<UserContext>> validateUserContext() {
-        logger.info("In validateUserContext()");
+        logger.debug("In validateUserContext()");
         return (userContext, sink) -> {
             List<ServiceError> errors = userContextValidator.validate(userContext);
             if (errors.isEmpty()) {
@@ -137,7 +142,7 @@ public class RedisUserContextService implements UserContextService {
 
     Mono<UserContext> checkContextAndRoleExists(UserContext userContext) {
 
-        logger.info("checkContextAndRoleExists Got UserContext => {}", userContext);
+        logger.debug("checkContextAndRoleExists Got UserContext => {}", userContext);
 
         return Mono.just(userContext)
                 .publishOn(publisherSchedule)
@@ -156,8 +161,8 @@ public class RedisUserContextService implements UserContextService {
                                 .build());
                     }
 
-                    logger.info("checkContextAndRoleExists Got UserContext => {}", uc);
-                    logger.info("checkContextAndRoleExists Got ContextEntity => {}", ctx);
+                    logger.debug("checkContextAndRoleExists Got UserContext => {}", uc);
+                    logger.debug("checkContextAndRoleExists Got ContextEntity => {}", ctx);
 
                     boolean contextExists = uc.getContextId().equals(ctx.getContextId());
                     if (!contextExists) {
@@ -220,7 +225,7 @@ public class RedisUserContextService implements UserContextService {
                     return uc;
                 })
                 .map(userContextToUserContextEntity(modifiedBy, tranasactionId, createdDate))
-                .doOnNext(uce -> logger.info("Created userContextEntity => {}", uce))
+                .doOnNext(uce -> logger.debug("Created userContextEntity => {}", uce))
                 .map(uce -> Tuples.of(uce, userContextRepository.save(uce)))
                 .map(tuple -> userContextEntityToUserContext.apply(tuple.getT2()));
     }
@@ -274,7 +279,7 @@ public class RedisUserContextService implements UserContextService {
         return Mono.just(contextId)
                 .publishOn(publisherSchedule)
                 .map(id -> userContextRepository.deleteByContextId(id))
-                .doOnNext(val -> logger.info("Deleted {} records ", val))
+                .doOnNext(val -> logger.debug("Deleted {} records ", val))
                 .then();
 
     }
@@ -284,7 +289,7 @@ public class RedisUserContextService implements UserContextService {
     public Mono<UserContextPage> getAllUserContextEntities(PageRequest pageRequest) {
         return Mono.just(pageRequest)
                 .publishOn(publisherSchedule)
-                .doOnNext(pageRequest1 -> logger.info("getAllUserContextEntities Got page request => {}", pageRequest1))
+                .doOnNext(pageRequest1 -> logger.debug("getAllUserContextEntities Got page request => {}", pageRequest1))
                 .flatMap(request -> Mono.zip(Mono.just(userContextRepository.count()),
                         Flux.fromIterable(userContextRepository.findAll())
                                 .skip(calculateSkip.apply(pageRequest))
@@ -400,7 +405,7 @@ public class RedisUserContextService implements UserContextService {
     public Mono<UserContextPage> getAllUserContexts(PageRequest pageRequest) {
         return Mono.just(pageRequest)
                 .publishOn(publisherSchedule)
-                .doOnNext(pageRequest1 -> logger.info("getAllUserContextEntities Got page request => {}", pageRequest1))
+                .doOnNext(pageRequest1 -> logger.debug("getAllUserContextEntities Got page request => {}", pageRequest1))
                 .flatMap(request -> Mono.zip(Mono.just(userContextRepository.count()),
                         Flux.fromIterable(userContextRepository.findAll())
                                 .skip(calculateSkip.apply(pageRequest))
@@ -425,7 +430,7 @@ public class RedisUserContextService implements UserContextService {
     public Mono<UserContextPage> getUserContextByContextId(PageRequest pageRequest, String contextId) {
         return Mono.just(pageRequest)
                 .publishOn(publisherSchedule)
-                .doOnNext(pageRequest1 -> logger.info("getUserContextByUserId Got page request => {}", pageRequest1))
+                .doOnNext(pageRequest1 -> logger.debug("getUserContextByUserId Got page request => {}", pageRequest1))
                 .flatMap(request -> Mono.zip(Mono.just(userContextRepository.findCountByContextId(contextId)),
                         Flux.fromIterable(userContextRepository.findByContextId(contextId))
                                 .skip(calculateSkip.apply(pageRequest))
@@ -450,7 +455,7 @@ public class RedisUserContextService implements UserContextService {
     public Mono<UserContextPage> getUserContextByUserId(PageRequest pageRequest, String userId) {
         return Mono.just(pageRequest)
                 .publishOn(publisherSchedule)
-                .doOnNext(pageRequest1 -> logger.info("getUserContextByUserId Got page request => {}", pageRequest1))
+                .doOnNext(pageRequest1 -> logger.debug("getUserContextByUserId Got page request => {}", pageRequest1))
                 .flatMap(request -> Mono.zip(Mono.just(userContextRepository.findCountByUserId(userId)),
                         Flux.fromIterable(userContextRepository.findByUserId(userId))
                                 .skip(calculateSkip.apply(pageRequest))
@@ -487,20 +492,20 @@ public class RedisUserContextService implements UserContextService {
         /*
         Optional<UserContextEntity> userContextEntity = userContextRepository.findByUserIdAndContextId(userContextRequest.getUserId(), userContextRequest.getContextId());
         if (userContextEntity.isPresent()){
-            logger.info("Got UserContextEntity {}",userContextEntity.get());
+            logger.debug("Got UserContextEntity {}",userContextEntity.get());
         } else {
-            logger.info("UserContextEntity from UserContextRequest {} is not available",userContextRequest);
+            logger.debug("UserContextEntity from UserContextRequest {} is not available",userContextRequest);
         }
 
          */
 
-        logger.info("userContextRepository is null {}", userContextRepository == null);
+        logger.debug("userContextRepository is null {}", userContextRepository == null);
 
         return Mono.just(userContextRequest)
                 .publishOn(Schedulers.boundedElastic())
-                .doOnNext(request -> logger.info("getUserContextByUserIdAndContextId request => {}", request))
+                .doOnNext(request -> logger.debug("getUserContextByUserIdAndContextId request => {}", request))
                 .map(request -> userContextRepository.findByUserIdAndContextId(request.getUserId(), request.getContextId()).orElseThrow(() -> new UserNotFoundException("User Not Found", request)))
-                .doOnNext(uce -> logger.info("Got uce => {}", uce))
+                .doOnNext(uce -> logger.debug("Got uce => {}", uce))
                 .flatMap(uce -> contextService.getRolesByContextIdAndRoleIdIn(uce.getContextId(), roleIds, roleIds.isEmpty()).collectList()
                         .map(roles -> Tuples.of(roles, uce)))
                 .elapsed()
@@ -519,6 +524,29 @@ public class RedisUserContextService implements UserContextService {
                     return userContextPermissions;
                 })
 
-                .doOnNext(ucp -> logger.info("got ucp => {}", ucp.toString()));
+                .doOnNext(ucp -> logger.debug("got ucp => {}", ucp.toString()));
+    }
+
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static final class RedisReactiveUserDetailsService implements ReactiveUserDetailsService{
+
+        String contextId;
+        UserContextService userContextService;
+        Scheduler scheduler = Schedulers.boundedElastic();
+
+        @Override
+        public Mono<UserDetails> findByUsername(String username) {
+            final UserContextRequest userContextRequest = UserContextRequest.builder()
+                    .contextId(contextId)
+                    .userId(username)
+                    .build();
+
+            return Mono.just(userContextRequest)
+                    .publishOn(scheduler)
+                    .flatMap(request -> userContextService.getUserContextByUserIdAndContextId(request))
+                    .map(SecurityUtils.convertUserContextPermissionsToUserDetails());
+        }
     }
 }

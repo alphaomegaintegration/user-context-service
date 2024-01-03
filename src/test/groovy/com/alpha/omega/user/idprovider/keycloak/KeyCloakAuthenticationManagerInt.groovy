@@ -104,7 +104,7 @@ class KeyCloakAuthenticationManagerInt extends Specification {
         logger.info("Got jwkSet {}", jwkSet)
         logger.info("Got baseUrl {}", baseUrl)
         KeyCloakAuthenticationManager authenticationManager = KeyCloakAuthenticationManager.builder()
-                .defaultContext("unhrc-bims")
+                .defaultContext(KeyCloakUtils.KEY_CLOAK_DEFAULT_CONTEXT)
                 .issuerURL(issuerUrl)
                 .realmBaseUrl(baseUrl)
                 .realmClientId(clientId)

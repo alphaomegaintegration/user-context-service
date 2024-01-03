@@ -28,10 +28,12 @@ public class UsersFromRequestPayloadBatchJobFactory {
     UserLoadPromotionItemWriter userLoadPromotionItemWriter;
     ExecutionContextPromotionListener promotionListener;
 
+    @Builder.Default
     String stepName = "read.from.batch.request";
+    @Builder.Default
     Integer chunkSize = 100;
 
-    Job createJobFromRequest(BatchUserRequest batchUserRequest){
+    public Job createJobFromRequest(BatchUserRequest batchUserRequest){
         Step usersFromRequestPayloadStep = usersFromRequestPayload(batchUserRequest);
         return new JobBuilder("users.from.request.payload.user.load.job", jobRepository)
                 .listener(promotionListener)

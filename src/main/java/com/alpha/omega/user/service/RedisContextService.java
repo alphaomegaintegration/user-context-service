@@ -9,17 +9,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.NoArgsConstructor;
-import org.apache.commons.collections4.IterableUtils;
-import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeanUtils;
 import org.springframework.core.io.DefaultResourceLoader;
-import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.data.crossstore.ChangeSetPersister;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.redis.connection.DataType;
 import org.springframework.data.redis.core.ReactiveRedisOperations;
@@ -32,9 +28,6 @@ import reactor.core.scheduler.Schedulers;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
 
-import java.io.InputStream;
-import java.io.NotActiveException;
-import java.nio.charset.Charset;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -42,7 +35,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 import static com.alpha.omega.user.service.ServiceUtils.*;
 import static com.alpha.omega.user.utils.Constants.COMMA;
@@ -52,7 +44,7 @@ import static com.alpha.omega.user.utils.Constants.COMMA;
 @AllArgsConstructor
 public class RedisContextService implements ContextService {
 
-    private static final Logger logger = LoggerFactory.getLogger(RedisContextService.class);
+    static final Logger logger = LoggerFactory.getLogger(RedisContextService.class);
 
 
     public static final String CONTEXT_ID_MUST_THE_SAME_AS_IN_PAYLOAD = "ContextId must the same as in payload.";
@@ -105,7 +97,7 @@ public class RedisContextService implements ContextService {
     };
 
     final static Function<ContextEntity, Context> convertContextEntityToContext = (contextEntity) -> {
-        logger.info("Got contextEntity in convertContextEntityToContext => {}", contextEntity);
+        logger.debug("Got contextEntity in convertContextEntityToContext => {}", contextEntity);
 
         if (contextEntity != null && !StringUtils.isBlank(contextEntity.getContextId())) {
             Date now = new Date();
@@ -344,13 +336,11 @@ public class RedisContextService implements ContextService {
     public Mono<ContextEntity> findContextEntity(String contextId) {
         return Mono.just(contextId)
                 .publishOn(Schedulers.boundedElastic())
-                .doOnNext(ctx -> logger.info("-------- Got context id -> {}", ctx))
+                .doOnNext(ctx -> logger.debug("-------- Got context id -> {}", ctx))
                 //.map(ctxId -> contextRepository.findByContextId(ctxId))
                 .map(ctxId -> contextRepository.findByContextId(ctxId))
-                .doOnNext(ctx -> logger.info("-------- Got context entity -> {}", ctx))
-                .switchIfEmpty(EMPTY_CONTEXT_ENTITY)
-                .doOnNext(ctx -> logger.info("-------- Got context entity -> {}", ctx));
-               // .subscribeOn(Schedulers.boundedElastic());
+                .doOnNext(ctx -> logger.debug("-------- Got context entity -> {}", ctx))
+                .switchIfEmpty(EMPTY_CONTEXT_ENTITY);
     }
 
     @Override
@@ -416,8 +406,8 @@ public class RedisContextService implements ContextService {
 
         return Mono.just(pageRequest)
                 .publishOn(Schedulers.boundedElastic())
-                .doOnNext(pageRequest1 -> logger.info("Got page request => {}", pageRequest1))
-                .doOnNext(pageRequest1 -> logger.info("Got total count => {}", contextRepository.count()))
+                .doOnNext(pageRequest1 -> logger.debug("Got page request => {}", pageRequest1))
+                .doOnNext(pageRequest1 -> logger.debug("Got total count => {}", contextRepository.count()))
                 .flatMap(request -> Mono.zip(Mono.just(contextRepository.count()),
                         Flux.fromIterable (contextRepository.findAll())
                                 .skip(calculateSkip.apply(pageRequest))
@@ -519,19 +509,6 @@ public class RedisContextService implements ContextService {
 
     }
 
-    Optional<String> extractFileFromResource(Resource resource){
-        Optional<String> value = Optional.empty();
-        try {
-            System.out.println("In Try Block");
-            String fileStr = IOUtils.toString(resource.getInputStream(), Charset.defaultCharset());
-            value = Optional.of(fileStr);
-        } catch (Exception e) {
-            logger.warn("Could not extractFileFromResource {}",resource,e);
-
-        }
-        return value;
-    }
-
     Function<Optional<String>, Optional<Context>> extractContextFromJson(){
         return json -> {
             Optional<Context> context = Optional.empty();
@@ -550,11 +527,11 @@ public class RedisContextService implements ContextService {
 
     @Override
     public Flux<Context> loadContexts(Scheduler scheduler, String contextsStr) {
-        logger.info("How many times is this called? {}",counter.incrementAndGet());
+        logger.debug("How many times is this called? {}",counter.incrementAndGet());
         return Flux.fromArray(contextsStr.split(COMMA))
                 .publishOn(scheduler)
                 .map(resourcePath -> resourceLoader.getResource(resourcePath))
-                .map(resource -> extractFileFromResource(resource))
+                .map(resource -> extractFileAsStringFromResource(resource))
                 .map(extractContextFromJson())
                 .flatMap(optionalContext -> this.createContext(optionalContext.get()));
     }

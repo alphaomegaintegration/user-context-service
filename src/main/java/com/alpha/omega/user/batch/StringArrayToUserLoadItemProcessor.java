@@ -61,17 +61,7 @@ public class StringArrayToUserLoadItemProcessor implements ItemProcessor<String[
     public UserLoad process(String[] item) throws Exception {
 
         UserLoad userLoad = stringArrayToUserLoadFunction.apply(item);
-        // This is an upsert. Last one wins
-        /*
-        String uniqueId = uniqueIdFunction.apply(userLoad);
-        boolean isProcessed = idempotentConsumer.isProcessed(uniqueId);
-        logger.info("Checking uniqueId => {} is processed => {} with password => {}",uniqueId,isProcessed);
-        if (isProcessed){
-            return null;
-        }
-        Long consumableResult = idempotentConsumer.consume(uniqueId);
 
-         */
         return userLoad;
     }
 

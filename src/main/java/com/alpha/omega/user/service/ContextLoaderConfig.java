@@ -4,6 +4,7 @@ import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.batch.core.repository.JobRepository;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -15,12 +16,13 @@ public class ContextLoaderConfig {
     @Bean
     ContextLoader contextLoader(PlatformTransactionManager transactionManager,
                                 JobRepository jobRepository, JobLauncher jobLauncher,
-                                ContextService contextService){
+                                ContextService contextService, ApplicationEventPublisher applicationEventPublisher){
         return ContextLoader.builder()
                 .transactionManager(transactionManager)
                 .jobRepository(jobRepository)
                 .jobLauncher(jobLauncher)
                 .contextService(contextService)
+                .applicationEventPublisher(applicationEventPublisher)
                 .build();
     }
 

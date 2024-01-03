@@ -57,7 +57,7 @@ public class ContextsDelegate implements ContextsApiDelegate {
     @Override
     public Mono<ResponseEntity<ContextPage>> getAllContexts(Integer page, Integer pageSize, String direction, ServerWebExchange exchange) {
         return contextService.getAllContextEntities(PageRequest.of(page, pageSize))
-                .doOnNext(contextPage -> logger.info("Got context page => {}", contextPage))
+                .doOnNext(contextPage -> logger.debug("Got context page => {}", contextPage))
 //                .map(cPage -> ResponseEntity.status(HttpStatus.OK)
 //                        .headers(headers -> headers.add(CORRELATION_ID, exchange.getAttribute(CORRELATION_ID)))
 //                        .body(cPage))

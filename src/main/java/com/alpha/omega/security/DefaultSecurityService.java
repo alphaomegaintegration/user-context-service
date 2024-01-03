@@ -1,12 +1,14 @@
 package com.alpha.omega.security;
 
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.ReactiveUserDetailsService;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.oauth2.client.OAuth2AuthorizeRequest;
 import org.springframework.security.oauth2.client.ReactiveOAuth2AuthorizedClientManager;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
-public class DefaultSecurityService implements SecurityService{
+public class DefaultSecurityService implements SecurityService, ReactiveUserDetailsService {
 
     ReactiveOAuth2AuthorizedClientManager authorizedClientManager;
 
@@ -24,5 +26,10 @@ public class DefaultSecurityService implements SecurityService{
         return this.authorizedClientManager.authorize(authorizeRequest)
                 .map(oAuth2AuthorizedClient -> oAuth2AuthorizedClient.getAccessToken())
 				.thenReturn("index");
+    }
+
+    @Override
+    public Mono<UserDetails> findByUsername(String username) {
+        return null;
     }
 }

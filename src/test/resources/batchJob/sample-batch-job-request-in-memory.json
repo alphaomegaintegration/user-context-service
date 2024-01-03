@@ -4,8 +4,28 @@
     "inMemory": true
 
   },
-  "correlationId": "65438410",
+  "correlationId": "66438422",
   "users": [
+    {
+      "title": "Miss",
+      "first": "jason",
+      "last": "Miller",
+      "streetNumber": 4506,
+      "streetName": "Camden Ave",
+      "city": "Chicago",
+      "state": "Vermont",
+      "country": "United States",
+      "postcode": 54812,
+      "latitude": -9.1638,
+      "longitude": 177.7048,
+      "timezone.offset": "-11:00",
+      "timezone.description": "Midway Island, Samoa",
+      "email": "jason.miller@example.com",
+      "contextId": "unhrc-bims",
+      "roleId": "reader-user-context-service",
+      "externalId": "c86c87d0-c155-bbe3-eae7-792031b4a1b8",
+      "password": "12345"
+    },
     {
       "title": "Miss",
       "first": "jason",
@@ -23,7 +43,8 @@
       "email": "jason.miller@example.com",
       "contextId": "user-context-service",
       "roleId": "reader-user-context-service",
-      "externalId": "c86c87d0-c155-bbe3-eae7-792031b4a1b8"
+      "externalId": "c86c87d0-c155-bbe3-eae7-792031b4a1b8",
+      "password": "12345"
     },
     {
       "title": "Mrs",

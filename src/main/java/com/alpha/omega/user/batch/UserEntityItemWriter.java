@@ -39,7 +39,7 @@ public class UserEntityItemWriter implements ItemWriter<UserEntity> {
         List<UserEntity> userEntities = chunk.getItems().stream()
                         .map(userEntity -> {
                             UserEntity ue = userRepository.save(userEntity);
-                            logger.info("UserEntity saved => {}", ue);
+                            logger.debug("UserEntity saved => {}", ue);
                             writeToJsonOut(ue);
                             return ue;
                         }).collect(Collectors.toList());

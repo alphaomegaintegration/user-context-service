@@ -3,7 +3,11 @@ package com.alpha.omega.user.service;
 import com.alpha.omega.user.batch.BatchUserRequest;
 import com.alpha.omega.user.batch.UserBatchException;
 import com.alpha.omega.user.batch.UserLoad;
+import com.alpha.omega.user.batch.UsersFromRequestPayloadBatchJobFactory;
+import com.alpha.omega.user.model.Context;
 import com.alpha.omega.user.utils.Constants;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.NoArgsConstructor;
@@ -23,9 +27,13 @@ import org.springframework.batch.item.function.FunctionItemProcessor;
 import org.springframework.batch.item.support.IteratorItemReader;
 import org.springframework.batch.repeat.RepeatStatus;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.ApplicationEvent;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.ApplicationListener;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.event.ContextRefreshedEvent;
+import org.springframework.core.io.DefaultResourceLoader;
+import org.springframework.core.io.ResourceLoader;
 import org.springframework.core.task.SimpleAsyncTaskExecutor;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
@@ -33,8 +41,8 @@ import org.springframework.transaction.PlatformTransactionManager;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.time.Clock;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 
@@ -53,13 +61,23 @@ public class ContextLoader {
     JobLauncher jobLauncher;
     JobRepository jobRepository;
     PlatformTransactionManager transactionManager;
+    ApplicationEventPublisher applicationEventPublisher;
 
     public Step createContextLoaderStep() {
         final SimpleAsyncTaskExecutor taskExecutor = new SimpleAsyncTaskExecutor();
         taskExecutor.setThreadNamePrefix(CONTEXT_LOADER_JOB_NAME);
 
+        ContextLoaderTasklet contextLoaderTasklet = ContextLoaderTasklet.builder()
+                .contextService(contextService)
+                .taskExecutor(taskExecutor)
+                .contextsToLoad(contextsToLoad)
+                .applicationEventPublisher(applicationEventPublisher)
+                .build();
+
+        contextLoaderTasklet.init();
+
         return new StepBuilder(CONTEXT_LOADER_STEP_NAME, jobRepository)
-                .tasklet(new ContextLoaderTasklet(contextService,taskExecutor, contextsToLoad), transactionManager)
+                .tasklet(contextLoaderTasklet, transactionManager)
                 .taskExecutor(taskExecutor)
                 .startLimit(1).throttleLimit(1)
                 .build();
@@ -71,12 +89,16 @@ public class ContextLoader {
                 .build();
     }
 
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class ContextLoaderTasklet implements Tasklet {
 
         ContextService contextService;
         Scheduler scheduler;
         TaskExecutor taskExecutor;
         String contextsToLoad;
+        ApplicationEventPublisher applicationEventPublisher;
         final AtomicLong counter = new AtomicLong();
 
         public ContextLoaderTasklet(ContextService contextService, TaskExecutor taskExecutor, String contextsToLoad) {
@@ -88,10 +110,17 @@ public class ContextLoader {
 
         @Override
         public RepeatStatus execute(StepContribution contribution, ChunkContext chunkContext) throws Exception {
-            logger.info("How many times is ContextLoaderTasklet called? {}",counter.incrementAndGet());
+            logger.debug("How many times is ContextLoaderTasklet called? {}",counter.incrementAndGet());
             contextService.loadContexts(scheduler, contextsToLoad)
-                    .subscribe(ctx -> logger.info("Created context {} ",ctx));
+                    .subscribe(ctx -> {
+                        logger.debug("Created context {} ",ctx);
+                        applicationEventPublisher.publishEvent(new ContextLoadedEvent(this));
+                    });
             return RepeatStatus.FINISHED;
+        }
+
+        public void init(){
+            this.scheduler = Schedulers.fromExecutor(this.taskExecutor);
         }
     }
 
@@ -110,7 +139,7 @@ public class ContextLoader {
 
         @Override
         public void onApplicationEvent(ApplicationReadyEvent event) {
-            logger.info("How many times is ApplicationListener<ApplicationReadyEvent> called? {}",counter.incrementAndGet());
+            logger.debug("How many times is ApplicationListener<ApplicationReadyEvent> called? {}",counter.incrementAndGet());
             try {
                 Map<String, JobParameter<?>> jobsMap = new HashMap<>();
                 jobsMap.put(Constants.CORRELATION_ID, new JobParameter<>(jobStr, String.class));
@@ -126,4 +155,17 @@ public class ContextLoader {
             }
         }
     }
+
+    public static class ContextLoadedEvent extends ApplicationEvent{
+
+        public ContextLoadedEvent(Object source) {
+            super(source);
+        }
+
+        public ContextLoadedEvent(Object source, Clock clock) {
+            super(source, clock);
+        }
+    }
+
+
 }

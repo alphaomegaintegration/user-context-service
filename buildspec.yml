@@ -1,0 +1,44 @@
+version: 0.2
+env:
+  variables:
+    AWS_DEFAULT_REGION: "us-east-1"
+    AWS_ACCOUNT_ID: "127418365645"
+    IMAGE_TAG: "latest"
+    IMAGE_REPO_NAME: "127418365645.dkr.ecr.us-east-1.amazonaws.com"
+    IMAGE_NAME: "user-context-service"
+  exported-variables:
+    - IMAGE_REPO_NAME
+    - IMAGE_NAME
+    - IMAGE_TAG
+    - AWS_ACCOUNT_ID
+    - AWS_DEFAULT_REGION
+phases:
+  install:
+    runtime-versions:
+      java: corretto17
+      # https://docs.aws.amazon.com/codebuild/latest/userguide/use-codebuild-agent.html
+
+  pre_build:
+    commands:
+      - echo Logging in to Amazon ECR...
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+  build:
+    commands:
+      - cd backend
+      - echo deploying code on `date`
+      - echo Build started on `date`
+      - export CODEARTIFACT_AUTH_TOKEN=`aws codeartifact get-authorization-token --domain alphaomega-repo --domain-owner 127418365645 --region us-east-1 --query authorizationToken --output text`
+      - echo $CODEARTIFACT_AUTH_TOKEN
+      #- ./mvnw -s settings.xml -Dimage.repo.name=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com clean deploy k8s:build
+      - ./mvnw -q -s settings.xml -Dimage.repo.name=$IMAGE_REPO_NAME clean deploy k8s:build
+  post_build:
+    commands:
+      - echo Build completed on `date`
+      - echo Pushing the Docker image...
+      #- docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/gsa-rapid-tech-challenge:$IMAGE_TAG
+      - docker push 127418365645.dkr.ecr.us-east-1.amazonaws.com/gsa-rapid-tech-challenge:latest
+      #- ./mvnw -q -s settings.xml k8s:push
+
+#artifacts:
+#  files:
+#    - alpha-omega-core/target/alpha-omega-core-0.0.1-SNAPSHOT.jar

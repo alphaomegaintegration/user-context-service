@@ -11,6 +11,7 @@ import java.util.function.Function;
 
 public class KeyCloakUtils {
 
+    public static final String KEY_CLOAK_DEFAULT_CONTEXT = "user-context-service";
     final static Mono<Map<String, Object>> EMPTY_ACCESS_CREDS = Mono.empty();
     final static ParameterizedTypeReference<Map<String, Object>> MAP_OBJECT = new ParameterizedTypeReference<Map<String, Object>>() {
     };
