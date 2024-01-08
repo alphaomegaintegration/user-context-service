@@ -15,7 +15,8 @@
     "LIST_USERS",
     "CREATE_USERS",
     "UPDATE_USERS",
-    "DELETE_USERS"
+    "DELETE_USERS",
+    "VIEW_CONFIGURATIONS"
   ],
   "roles": [
     {
@@ -33,7 +34,9 @@
         "LIST_USERS",
         "CREATE_USERS",
         "UPDATE_USERS",
-        "DELETE_USERS"
+        "DELETE_USERS",
+        "VIEW_CONFIGURATIONS",
+        "NONE"
       ]
     },
     {
@@ -43,6 +46,13 @@
         "LIST_CONTEXTS",
         "LIST_USER_CONTEXTS",
         "LIST_USERS"
+      ]
+    },
+    {
+      "roleId": "noop-user-context-service",
+      "roleName": "noop-user-context-service",
+      "permissions": [
+        "NONE"
       ]
     }
   ]

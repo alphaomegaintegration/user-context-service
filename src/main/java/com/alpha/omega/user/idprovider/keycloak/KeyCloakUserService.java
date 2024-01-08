@@ -6,7 +6,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.NoArgsConstructor;
-import lombok.ToString;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,9 +17,7 @@ import org.springframework.batch.item.ExecutionContext;
 import org.springframework.batch.item.ItemWriter;
 import org.springframework.batch.repeat.RepeatStatus;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.*;
-import org.springframework.security.oauth2.core.OAuth2TokenValidator;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtValidators;
@@ -28,20 +25,21 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.ExchangeFilterFunction;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
 
-import javax.annotation.PostConstruct;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 
 import static com.alpha.omega.user.batch.BatchConstants.PROMOTE_USER_ENTITY_CHUNK_KEY;
 import static com.alpha.omega.user.batch.BatchConstants.PROMOTE_USER_LOAD_CHUNK_KEY;
@@ -82,13 +80,15 @@ public class KeyCloakUserService implements ItemWriter<UserEntity>, StepExecutio
 
     private List<UserEntity> userEntities;
     private StepExecution stepExecution;
+    @Builder.Default
+    Scheduler scheduler = Schedulers.boundedElastic();
 
     @Override
     public void beforeStep(StepExecution stepExecution) {
         logger.debug("Using keyCloakIdpProperties => {}", keyCloakIdpProperties);
         NimbusJwtDecoder nimbusJwtDecoder = NimbusJwtDecoder.withJwkSetUri(keyCloakIdpProperties.jwksetUri())
                 .build();
-        nimbusJwtDecoder.setJwtValidator(JwtValidators.createDefaultWithIssuer(keyCloakIdpProperties.issuerUrl));
+        nimbusJwtDecoder.setJwtValidator(JwtValidators.createDefaultWithIssuer(keyCloakIdpProperties.issuerUrl()));
         jwtDecoder = nimbusJwtDecoder;
         webClient = WebClient.builder()
                 .filters(exchangeFilterFunctions -> {
@@ -98,10 +98,10 @@ public class KeyCloakUserService implements ItemWriter<UserEntity>, StepExecutio
                 .baseUrl(keyCloakIdpProperties.baseUrl())
                 .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_FORM_URLENCODED_VALUE)
                 .build();
-        basicAuthCreds = () -> basicAuthCredsFrom(keyCloakIdpProperties.adminClientId, keyCloakIdpProperties.adminClientSecret);
+        basicAuthCreds = () -> basicAuthCredsFrom(keyCloakIdpProperties.adminClientId(), keyCloakIdpProperties.adminClientSecret());
 
         logger.info("Using basic auth creds {} for username => {} password => {}",
-                new Object[]{basicAuthCreds.get(), keyCloakIdpProperties.adminClientId, keyCloakIdpProperties.adminClientSecret});
+                new Object[]{basicAuthCreds.get(), keyCloakIdpProperties.adminClientId(), keyCloakIdpProperties.adminClientSecret()});
 
         accessCreds = adminCliAccessCreds();
         JobExecution jobExecution = stepExecution.getJobExecution();
@@ -134,6 +134,9 @@ public class KeyCloakUserService implements ItemWriter<UserEntity>, StepExecutio
      */
     private Mono<Map<String, Object>> adminCliAccessCreds() {
 
+        logger.info("keyCloakIdpProperties.baseUrl() + keyCloakIdpProperties.adminTokenUri() => {}",keyCloakIdpProperties.baseUrl() + keyCloakIdpProperties.adminTokenUri());
+        logger.info("keyCloakIdpProperties.adminClientId() => {}",keyCloakIdpProperties.adminClientId());
+        logger.info("keyCloakIdpProperties.adminClientSecret() => {}",keyCloakIdpProperties.adminClientSecret());
 
         return webClient.post()
                 //  .uri(keyCloakIdpProperties.tokenUri())
@@ -141,6 +144,7 @@ public class KeyCloakUserService implements ItemWriter<UserEntity>, StepExecutio
                 //.headers(h -> h.setBasicAuth(basicAuthCreds.get()))
                 .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_FORM_URLENCODED_VALUE)
                 .body(BodyInserters.fromFormData("grant_type", "client_credentials")
+                //.body(BodyInserters.fromFormData("grant_type", "password")
                         .with("client_id", keyCloakIdpProperties.adminClientId())
                         .with("client_secret", keyCloakIdpProperties.adminClientSecret()))
                 .retrieve()
@@ -198,9 +202,9 @@ public class KeyCloakUserService implements ItemWriter<UserEntity>, StepExecutio
     */
     Function<Tuple2<? extends UserLoad, Map<String, Object>>, Mono<ResponseEntity<Map<String, Object>>>> postUserRepresentationFromUserLoad() {
         return tuple -> {
-            logger.info("Got contextId => {} for userUri => {}",tuple.getT1().getContextId(), keyCloakIdpProperties.userUri());
+            logger.debug("Got contextId => {} for userUri => {}",tuple.getT1().getContextId(), keyCloakIdpProperties.userUri());
             final UserRepresentation userRepresentation = convertToUserRepresentationFromUserLoad().apply(tuple.getT1());
-            logger.info("Got userRepresentation => {} ",userRepresentation);
+            logger.debug("Got userRepresentation => {} ",userRepresentation);
             return Mono.just(tuple.getT2())
                     .publishOn(Schedulers.boundedElastic())
                     .flatMap(creds -> webClient.post()
@@ -280,20 +284,33 @@ public class KeyCloakUserService implements ItemWriter<UserEntity>, StepExecutio
     public void write(Chunk<? extends UserEntity> chunk) throws Exception {
 
         Flux.fromIterable(chunk.getItems())
-                .publishOn(Schedulers.boundedElastic())
+                .publishOn(scheduler)
                 .flatMap(userEntity -> Mono.zip(Mono.just(userEntity), adminCliAccessCreds(),
                         (ue, creds) -> Tuples.of(ue, creds)))
                 .flatMap(tpl -> postUserRepresentation().apply(tpl))
                 .subscribe();
     }
 
+    final static BiConsumer<Throwable, Object> withErrorConsumer(){
+        return (Throwable throwable, Object obj) -> {
+            logger.error("Got some error ",throwable);
+            if (throwable instanceof WebClientResponseException){
+                WebClientResponseException ex = (WebClientResponseException)throwable;
+                //if (ex.getStatusCode().value() == 409)
+                logger.warn("Got a response status {} with text {}...Ignoring for now.  Exception is => {}",
+                        new Object[]{ex.getStatusCode().value(),ex.getStatusText(),ex.getMessage()});
+            }
+        };
+    }
+
     private void writeUserLoadsToIdentityProvider(List<UserLoad> userLoadList) {
 
         Flux.fromIterable(userLoadList)
-                .publishOn(Schedulers.boundedElastic())
+                .publishOn(scheduler)
                 .flatMap(userLoad -> Mono.zip(Mono.just(userLoad), adminCliAccessCreds(),
                         (ue, creds) -> Tuples.of(ue, creds)))
                 .flatMap(tpl -> postUserRepresentationFromUserLoad().apply(tpl))
+                .onErrorContinue(withErrorConsumer())
                 .subscribe();
     }
 
@@ -319,33 +336,15 @@ public class KeyCloakUserService implements ItemWriter<UserEntity>, StepExecutio
 
 
 
-    public Mono<Map<String, Object>> passwordGrantLoginMap(String username, String password) {
-
-        return webClient.post()
-                .uri(keyCloakIdpProperties.tokenUri())
-                .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_FORM_URLENCODED_VALUE)
-                .body(BodyInserters.fromFormData("grant_type", "password")
-                        .with("username", username)
-                        .with("password", password)
-                        .with("client_id", keyCloakIdpProperties.clientId())
-                        .with("client_secret", keyCloakIdpProperties.clientSecret()))
-                .retrieve()
-                .bodyToMono(MAP_OBJECT);
-    }
-
-    public Mono<Optional<Jwt>> passwordGrantLoginJwt(String username, String password) {
-
-        return this.passwordGrantLoginMap(username, password)
-                .map(KeyCloakUtils.convertResultMapToJwt(jwtDecoder));
-    }
-
-
+    /*
     @ConfigurationProperties(prefix = "idp.provider.keycloak")
     public record KeyCloakIdpProperties(String clientId, String clientSecret, String baseUrl, String tokenUri,
                                         String userUri, String realm, String adminTokenUri, String adminUsername,
                                         String adminPassword, String adminClientId, String adminClientSecret,
                                         String jwksetUri, String issuerUrl) {
     }
+
+     */
 
     @Builder
     public record CredentialRepresentation(String id, String type, String value) {

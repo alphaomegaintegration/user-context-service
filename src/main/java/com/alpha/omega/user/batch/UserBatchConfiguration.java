@@ -1,6 +1,7 @@
 package com.alpha.omega.user.batch;
 
 import com.alpha.omega.user.delegate.UserDelegate;
+import com.alpha.omega.user.idprovider.keycloak.KeyCloakIdpProperties;
 import com.alpha.omega.user.idprovider.keycloak.KeyCloakUserService;
 import com.alpha.omega.user.repository.UserContextRepository;
 import com.alpha.omega.user.repository.UserEntity;
@@ -45,7 +46,7 @@ import static com.alpha.omega.user.batch.BatchConstants.PROMOTE_USER_LOAD_CHUNK_
 import static com.alpha.omega.user.utils.Constants.COMMA;
 
 @Configuration
-@EnableConfigurationProperties(value = {KeyCloakUserService.KeyCloakIdpProperties.class})
+@EnableConfigurationProperties(value = {KeyCloakIdpProperties.class})
 //@EnableBatchProcessing
 public class UserBatchConfiguration extends CommandLineJobRunner {
 
@@ -214,10 +215,13 @@ public class UserBatchConfiguration extends CommandLineJobRunner {
             return new Supplier<String>() {
                 @Override
                 public String get() {
+                    /*
                     String salt = "pepper";
                     String password = "fakePassword";
                     String secretKey = BatchUtil.generateSecretKeyString(keyGeneratorPassword, keyGeneratorSalt);
-                    return secretKey;
+                    */
+                    return keyGeneratorPassword;
+
                 }
             };
         }
@@ -295,6 +299,9 @@ public class UserBatchConfiguration extends CommandLineJobRunner {
     @Configuration
     public static class BatchJobServiceConfig {
 
+        @Value("${key.generator.password}")
+        String keyGeneratorPassword;
+
         @Bean
         BatchJobService batchJobService(Job csvJob, UsersFromRequestPayloadBatchJobFactory usersFromRequestPayloadBatchJobFactory,
                                         JobLauncher jobLauncher, JobRepository jobRepository) {
@@ -310,6 +317,7 @@ public class UserBatchConfiguration extends CommandLineJobRunner {
         ServiceAccountLoader serviceAccountLoader(BatchJobService batchJobService){
             return ServiceAccountLoader.builder()
                     .batchJobService(batchJobService)
+                    .keyGenerator(keyGeneratorPassword)
                     .build();
         }
 

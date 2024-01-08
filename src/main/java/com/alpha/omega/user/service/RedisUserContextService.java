@@ -61,7 +61,7 @@ public class RedisUserContextService implements UserContextService {
     UserContextValidator userContextValidator = new UserContextValidator();
     ContextRepository contextRepository;
     @Builder.Default
-    Scheduler publisherSchedule = Schedulers.boundedElastic();
+    Scheduler scheduler = Schedulers.boundedElastic();
 
     public RedisUserContextService(ContextService contextService, ReactiveRedisTemplate<String, UserContextEntity> userContextTemplate) {
         this.contextService = contextService;
@@ -145,7 +145,7 @@ public class RedisUserContextService implements UserContextService {
         logger.debug("checkContextAndRoleExists Got UserContext => {}", userContext);
 
         return Mono.just(userContext)
-                .publishOn(publisherSchedule)
+                .publishOn(scheduler)
                 .flatMap(uc -> Mono.zip(Mono.just(uc),
                         Mono.just(Optional.ofNullable(contextRepository.findByContextId(uc.getContextId())).orElse(new ContextEntity())),
                         (t1, t2) -> Tuples.of(t1, t2)))
@@ -211,7 +211,7 @@ public class RedisUserContextService implements UserContextService {
     public Mono<UserContext> createUserContext(Mono<UserContext> userContext, String modifiedBy, String tranasactionId, Date createdDate) {
 
         return Mono.from(userContext)
-                .publishOn(publisherSchedule)
+                .publishOn(scheduler)
                 .handle(validateUserContext())
                 .flatMap(uc -> checkContextAndRoleExists(uc))
                 .flatMap(uc -> Mono.just(userContextRepository.findByUserIdAndContextIdAndRoleId(uc.getUserId(),
@@ -234,7 +234,7 @@ public class RedisUserContextService implements UserContextService {
     @Override
     public Mono<UserContext> createUserContext(UserContext context) {
         return Mono.just(context)
-                .publishOn(Schedulers.parallel())
+                .publishOn(scheduler)
                 .handle(validateUserContext())
                 .map(convertUserContextToContextEntity())
                 //.flatMap(ctx -> userContextTemplate.opsForValue().set(calculateUserContextKey(ctx), ctx))
@@ -251,7 +251,7 @@ public class RedisUserContextService implements UserContextService {
     @Override
     public Mono<UserContext> updateUserContext(UserContext context) {
         return Mono.just(context)
-                .publishOn(publisherSchedule)
+                .publishOn(scheduler)
                 .handle(validateUserContext())
                 .map(convertUserContextToContextEntity())
                 .filterWhen(uce -> contextService.roleExistsInContext(uce.getRoleId(), uce.getContextId()))
@@ -269,7 +269,7 @@ public class RedisUserContextService implements UserContextService {
     @Override
     public Flux<UserContext> findByContextId(String contextId) {
         return Flux.just(contextId)
-                .publishOn(publisherSchedule)
+                .publishOn(scheduler)
                 .flatMapIterable(id -> userContextRepository.findByContextId(id))
                 .map(userContextEntityToUserContext);
     }
@@ -277,7 +277,7 @@ public class RedisUserContextService implements UserContextService {
     @Override
     public Mono<Void> deleteUserContextByContextId(String contextId) {
         return Mono.just(contextId)
-                .publishOn(publisherSchedule)
+                .publishOn(scheduler)
                 .map(id -> userContextRepository.deleteByContextId(id))
                 .doOnNext(val -> logger.debug("Deleted {} records ", val))
                 .then();
@@ -288,7 +288,7 @@ public class RedisUserContextService implements UserContextService {
     @Override
     public Mono<UserContextPage> getAllUserContextEntities(PageRequest pageRequest) {
         return Mono.just(pageRequest)
-                .publishOn(publisherSchedule)
+                .publishOn(scheduler)
                 .doOnNext(pageRequest1 -> logger.debug("getAllUserContextEntities Got page request => {}", pageRequest1))
                 .flatMap(request -> Mono.zip(Mono.just(userContextRepository.count()),
                         Flux.fromIterable(userContextRepository.findAll())
@@ -313,7 +313,7 @@ public class RedisUserContextService implements UserContextService {
     @Override
     public Flux<UserContext> getUserContextByContextId(String contextId) {
         return Flux.just(contextId)
-                .publishOn(Schedulers.parallel())
+                .publishOn(scheduler)
                 .flatMap(ctxId -> userContextTemplate.opsForValue().get(calculateUserContextKey(STAR, ctxId, STAR)))
                 .map(userContextEntityToUserContext);
     }
@@ -343,7 +343,7 @@ public class RedisUserContextService implements UserContextService {
         final Tuple3<String, String, String> params = Tuples.of(userId, contextId, roleId);
 
         return Mono.just(params)
-                .publishOn(publisherSchedule)
+                .publishOn(scheduler)
                 .map(tp3 -> userContextRepository.findByUserIdAndContextId(tp3.getT1(), tp3.getT2()).orElseThrow(() -> new UserNotFoundException("User Not Found")))
                 .flatMap(uce -> Mono.zip(Mono.just(uce), contextService.getRolesByContextIdAndRoleIdIn(uce.getContextId(), Collections.singletonList(uce.getRoleId()), Boolean.FALSE).collectList(),
                         (t1, t2) -> Tuples.of(t1, t2)))
@@ -373,7 +373,7 @@ public class RedisUserContextService implements UserContextService {
 
         final Tuple3<String, String, List<String>> params = Tuples.of(userId, contextId, permissions);
         return Mono.just(params)
-                .publishOn(publisherSchedule)
+                .publishOn(scheduler)
                 .map(tp3 -> userContextRepository.findByUserIdAndContextId(tp3.getT1(), tp3.getT2()).orElseThrow(() -> new UserNotFoundException("User Not Found")))
                 .flatMap(uce -> Mono.zip(Mono.just(uce), Mono.just(contextRepository.findByContextId(uce.getContextId())),
                         (t1, t2) -> Tuples.of(t1, t2)))
@@ -392,7 +392,7 @@ public class RedisUserContextService implements UserContextService {
     @Override
     public Mono<Void> deleteUserContextByUserContextId(String userContextId) {
         return Mono.just(userContextId)
-                .publishOn(publisherSchedule)
+                .publishOn(scheduler)
                 .map(uctxId -> userContextRepository.findById(uctxId).orElseThrow(() -> new UserNotFoundException("User Not Found for id " + userContextId)))
                 .map(uce -> {
                     uce.setEnabled(Boolean.FALSE);
@@ -404,7 +404,7 @@ public class RedisUserContextService implements UserContextService {
     @Override
     public Mono<UserContextPage> getAllUserContexts(PageRequest pageRequest) {
         return Mono.just(pageRequest)
-                .publishOn(publisherSchedule)
+                .publishOn(scheduler)
                 .doOnNext(pageRequest1 -> logger.debug("getAllUserContextEntities Got page request => {}", pageRequest1))
                 .flatMap(request -> Mono.zip(Mono.just(userContextRepository.count()),
                         Flux.fromIterable(userContextRepository.findAll())
@@ -429,7 +429,7 @@ public class RedisUserContextService implements UserContextService {
     @Override
     public Mono<UserContextPage> getUserContextByContextId(PageRequest pageRequest, String contextId) {
         return Mono.just(pageRequest)
-                .publishOn(publisherSchedule)
+                .publishOn(scheduler)
                 .doOnNext(pageRequest1 -> logger.debug("getUserContextByUserId Got page request => {}", pageRequest1))
                 .flatMap(request -> Mono.zip(Mono.just(userContextRepository.findCountByContextId(contextId)),
                         Flux.fromIterable(userContextRepository.findByContextId(contextId))
@@ -454,7 +454,7 @@ public class RedisUserContextService implements UserContextService {
     @Override
     public Mono<UserContextPage> getUserContextByUserId(PageRequest pageRequest, String userId) {
         return Mono.just(pageRequest)
-                .publishOn(publisherSchedule)
+                .publishOn(scheduler)
                 .doOnNext(pageRequest1 -> logger.debug("getUserContextByUserId Got page request => {}", pageRequest1))
                 .flatMap(request -> Mono.zip(Mono.just(userContextRepository.findCountByUserId(userId)),
                         Flux.fromIterable(userContextRepository.findByUserId(userId))
@@ -502,7 +502,7 @@ public class RedisUserContextService implements UserContextService {
         logger.debug("userContextRepository is null {}", userContextRepository == null);
 
         return Mono.just(userContextRequest)
-                .publishOn(Schedulers.boundedElastic())
+                .publishOn(scheduler)
                 .doOnNext(request -> logger.debug("getUserContextByUserIdAndContextId request => {}", request))
                 .map(request -> userContextRepository.findByUserIdAndContextId(request.getUserId(), request.getContextId()).orElseThrow(() -> new UserNotFoundException("User Not Found", request)))
                 .doOnNext(uce -> logger.debug("Got uce => {}", uce))

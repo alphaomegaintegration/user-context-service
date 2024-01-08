@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.ApplicationListener;
 import org.springframework.context.annotation.Bean;
@@ -39,6 +40,9 @@ import reactor.core.publisher.Mono;
 
 import javax.annotation.PostConstruct;
 import java.util.Collections;
+import java.util.List;
+
+import static com.alpha.omega.user.utils.Constants.COLON;
 
 @Configuration
 @EnableConfigurationProperties(CacheConfigProperties.class)
@@ -55,6 +59,46 @@ public class DefaultRedisCacheConfiguration {
 
     public void setCacheConfigProperties(CacheConfigProperties cacheConfigProperties) {
         this.cacheConfigProperties = cacheConfigProperties;
+    }
+
+    @Configuration
+    @ConditionalOnProperty(prefix = "cache.server", name = "mode", havingValue = "standalone", matchIfMissing = true)
+    public static class StandaloneConfig{
+        @Autowired
+        Environment env;
+
+        @Bean
+        @Primary
+        public ReactiveRedisConnectionFactory connectionFactory() {
+            String host = env.getProperty("REDIS_HOST", "localhost");
+            Integer port = env.getProperty("REDIS_PORT", Integer.class,6379);
+            return new LettuceConnectionFactory(host, port);
+        }
+    }
+
+    @Configuration
+    @ConditionalOnProperty(prefix = "cache.server", name = "mode", havingValue = "cluster", matchIfMissing = false)
+    public static class ClusterConfig{
+        @Autowired
+        Environment env;
+
+        /*
+         * spring.redis.cluster.nodes[0] = 127.0.0.1:7379
+         * spring.redis.cluster.nodes[1] = 127.0.0.1:7380
+         * ...
+        List<String> nodes;
+         */
+
+        @Bean
+        @Primary
+        public ReactiveRedisConnectionFactory connectionFactory() {
+            String host = env.getProperty("REDIS_HOST", "localhost");
+            Integer port = env.getProperty("REDIS_PORT", Integer.class,6379);
+            List<String> nodes = Collections.singletonList(host+COLON+port);
+            return new LettuceConnectionFactory(new RedisClusterConfiguration(nodes));
+        }
+
+
     }
 
     private RedisNode populateNode(String host, Integer port) {
@@ -79,13 +123,7 @@ public class DefaultRedisCacheConfiguration {
         return redisStandaloneConfiguration;
     }
 
-    @Bean
-    @Primary
-    public ReactiveRedisConnectionFactory connectionFactory() {
-        String host = env.getProperty("REDIS_HOST", "localhost");
-        Integer port = env.getProperty("REDIS_PORT", Integer.class,6379);
-        return new LettuceConnectionFactory(host, port);
-    }
+
 
     @Bean
     @ConditionalOnMissingBean(

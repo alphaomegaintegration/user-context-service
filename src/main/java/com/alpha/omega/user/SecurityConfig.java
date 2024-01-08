@@ -1,10 +1,7 @@
 package com.alpha.omega.user;
 
 import com.alpha.omega.security.ClientRegistrationConfig;
-import com.alpha.omega.user.idprovider.keycloak.KeyCloakAuthenticationManager;
-import com.alpha.omega.user.idprovider.keycloak.KeyCloakUserService;
-import com.alpha.omega.user.idprovider.keycloak.KeyCloakUtils;
-import com.alpha.omega.user.idprovider.keycloak.KeycloakJwtRolesReactiveConverter;
+import com.alpha.omega.user.idprovider.keycloak.*;
 import com.alpha.omega.user.service.RedisUserContextService;
 import com.alpha.omega.user.service.UserContextService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,9 +11,11 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.env.Environment;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.ReactiveAuthenticationManager;
+import org.springframework.security.config.annotation.method.configuration.EnableReactiveMethodSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.core.userdetails.*;
 import org.springframework.security.oauth2.client.registration.ReactiveClientRegistrationRepository;
@@ -42,9 +41,13 @@ import java.util.function.Consumer;
 
 @Configuration
 @EnableWebFluxSecurity
+@EnableReactiveMethodSecurity
 @Import(value={ClientRegistrationConfig.class})
 public class SecurityConfig {
 
+    /*
+    https://docs.spring.io/spring-security/reference/reactive/authorization/method.html
+     */
     /*
     @Bean
     SecurityFilterChain filterChain(HttpSecurity httpSecurity) throws Exception {
@@ -133,13 +136,20 @@ public class SecurityConfig {
     @Bean
     SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http,
                                                      @Qualifier("idProviderAuthenticationManager")ReactiveAuthenticationManager authenticationManager,
-                                                     KeyCloakUserService.KeyCloakIdpProperties keyCloakIdpProperties) {
+                                                     KeyCloakIdpProperties keyCloakIdpProperties) {
         // @formatter:off
-        http.authorizeExchange((authorize) -> authorize
+        http.authorizeExchange((authorize) -> authorize ///usercontexts/user/{userId}/context/{contextId}
                         //.pathMatchers("/**").permitAll()
+                        //.pathMatchers("").access()
+                        .pathMatchers(HttpMethod.POST, "/contexts").hasAuthority("CREATE_CONTEXTS")
+                        .pathMatchers(HttpMethod.GET, "/contexts").hasAuthority("LIST_CONTEXTS")
+                        .pathMatchers(HttpMethod.POST, "/usercontexts").hasAuthority("CREATE_USER_CONTEXTS")
+                        .pathMatchers(HttpMethod.GET, "/usercontexts").hasAuthority("LIST_USER_CONTEXTS")
+                        .pathMatchers(HttpMethod.GET, "/usercontexts/user/*/context/*").hasAuthority("LIST_USER_CONTEXTS")
+                        .pathMatchers(HttpMethod.GET,"/actuator/env/**").hasAuthority("VIEW_CONFIGURATIONS")
                         .anyExchange().authenticated()
-                )
-                .httpBasic(httpBasicSpec -> httpBasicSpec.authenticationManager(authenticationManager));
+                );
+                //.httpBasic(httpBasicSpec -> httpBasicSpec.authenticationManager(authenticationManager));
               //  .formLogin((form) -> form
               //          .loginPage("/login")
               //  );
@@ -154,33 +164,6 @@ public class SecurityConfig {
         http.authenticationManager(authenticationManager);
         http.csrf(csrfSpec -> csrfSpec.disable());
         return http.build();
-    }
-
-    AuthenticationWebFilter createHttpBasicFilter(ReactiveAuthenticationManager authenticationManager){
-        final ServerWebExchangeMatcher xhrMatcher = (exchange) -> Mono.just(exchange.getRequest().getHeaders())
-                .filter((h) -> h.getOrEmpty("X-Requested-With").contains("XMLHttpRequest"))
-                .flatMap((h) -> ServerWebExchangeMatcher.MatchResult.match())
-                .switchIfEmpty(ServerWebExchangeMatcher.MatchResult.notMatch());
-        MediaTypeServerWebExchangeMatcher restMatcher = new MediaTypeServerWebExchangeMatcher(
-                MediaType.APPLICATION_ATOM_XML, MediaType.APPLICATION_FORM_URLENCODED, MediaType.APPLICATION_JSON,
-                MediaType.APPLICATION_OCTET_STREAM, MediaType.APPLICATION_XML, MediaType.MULTIPART_FORM_DATA,
-                MediaType.TEXT_XML);
-        restMatcher.setIgnoredMediaTypes(Collections.singleton(MediaType.ALL));
-        ServerWebExchangeMatcher notHtmlMatcher = new NegatedServerWebExchangeMatcher(new MediaTypeServerWebExchangeMatcher(MediaType.TEXT_HTML));
-        ServerWebExchangeMatcher restNotHtmlMatcher = new AndServerWebExchangeMatcher(Arrays.asList(notHtmlMatcher, restMatcher));
-        ServerWebExchangeMatcher preferredMatcher = new OrServerWebExchangeMatcher(Arrays.asList(xhrMatcher, restNotHtmlMatcher));
-        List<DelegatingServerAuthenticationEntryPoint.DelegateEntry> entryPoints = new ArrayList<>();
-        entryPoints.add(new DelegatingServerAuthenticationEntryPoint.DelegateEntry(xhrMatcher, new HttpStatusServerEntryPoint(HttpStatus.UNAUTHORIZED)));
-        DelegatingServerAuthenticationEntryPoint defaultEntryPoint = new DelegatingServerAuthenticationEntryPoint(entryPoints);
-        defaultEntryPoint.setDefaultEntryPoint(new HttpBasicServerAuthenticationEntryPoint());
-        //ServerHttpSecurity.this.defaultEntryPoints.add(new DelegatingServerAuthenticationEntryPoint.DelegateEntry(preferredMatcher, defaultEntryPoint));
-        AuthenticationWebFilter authenticationFilter = new AuthenticationWebFilter(authenticationManager);
-        authenticationFilter.setRequiresAuthenticationMatcher(preferredMatcher);
-        authenticationFilter.setAuthenticationFailureHandler(new ServerAuthenticationEntryPointFailureHandler(defaultEntryPoint));
-        authenticationFilter.setAuthenticationConverter(new ServerHttpBasicAuthenticationConverter());
-        authenticationFilter.setSecurityContextRepository(NoOpServerSecurityContextRepository.getInstance());
-        return authenticationFilter;
-        //http.addFilterAt(authenticationFilter, SecurityWebFiltersOrder.HTTP_BASIC);
     }
 
     @Autowired

@@ -4,6 +4,8 @@ import com.alpha.omega.user.model.UserContextPermissions;
 import com.alpha.omega.user.repository.UserEntity;
 import com.alpha.omega.user.service.UserContextRequest;
 import com.alpha.omega.user.service.UserContextService;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -12,6 +14,7 @@ import reactor.core.publisher.Mono;
 
 import java.nio.charset.Charset;
 import java.util.Base64;
+import java.util.Collections;
 import java.util.List;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -59,5 +62,16 @@ public class SecurityUtils {
                     .build();
             return user;
         };
+    }
+
+    public static final UserDetails noOpUserDetails(String username){
+        return SecurityUser.builder()
+                .authorities(Collections.singletonList(new SimpleGrantedAuthority(username.toLowerCase())))
+                .username(username)
+                .build();
+    }
+
+    public static Authentication noOpAuthentication(String username){
+        return new AnonymousAuthenticationToken(username, username, Collections.singletonList(new SimpleGrantedAuthority(username.toLowerCase())));
     }
 }

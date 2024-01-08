@@ -211,14 +211,14 @@
             <version>3.0.0</version>
         </dependency>
 
-        <!--
+
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-resolver-dns-native-macos</artifactId>
             <version>4.1.72.Final</version>
             <classifier>osx-aarch_64</classifier>
         </dependency>
-        -->
+
 
         <dependency>
             <groupId>com.fasterxml.jackson.dataformat</groupId>
@@ -403,7 +403,7 @@
                             <artifactId>lombok</artifactId>
                         </exclude>
                     </excludes>
-                    <mainClass>com.alpha.omega.user.DemoCrudApplication</mainClass>
+                    <mainClass>com.alpha.omega.user.UserContextServiceApplication</mainClass>
                 </configuration>
 
             </plugin>

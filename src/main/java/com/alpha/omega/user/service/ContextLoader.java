@@ -10,6 +10,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -114,7 +115,7 @@ public class ContextLoader {
             contextService.loadContexts(scheduler, contextsToLoad)
                     .subscribe(ctx -> {
                         logger.debug("Created context {} ",ctx);
-                        applicationEventPublisher.publishEvent(new ContextLoadedEvent(this));
+                        applicationEventPublisher.publishEvent(new ContextLoadedEvent(this, ctx));
                     });
             return RepeatStatus.FINISHED;
         }
@@ -156,15 +157,21 @@ public class ContextLoader {
         }
     }
 
+    @Getter
     public static class ContextLoadedEvent extends ApplicationEvent{
 
-        public ContextLoadedEvent(Object source) {
+        Context context;
+
+        public ContextLoadedEvent(Object source, Context context) {
             super(source);
+            this.context = context;
         }
 
-        public ContextLoadedEvent(Object source, Clock clock) {
+        public ContextLoadedEvent(Object source, Clock clock, Context context) {
             super(source, clock);
+            this.context = context;
         }
+
     }
 
 

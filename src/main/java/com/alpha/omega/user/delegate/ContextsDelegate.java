@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
@@ -32,6 +33,7 @@ public class ContextsDelegate implements ContextsApiDelegate {
     ContextService contextService;
 
 
+    //@PreAuthorize("hasAuthority('CREATE_CONTEXTS')")
     @Override
     public Mono<ResponseEntity<Context>> createContext(Mono<Context> context, ServerWebExchange exchange) {
 

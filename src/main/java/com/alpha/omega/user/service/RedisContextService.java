@@ -57,18 +57,8 @@ public class RedisContextService implements ContextService {
     ObjectMapper objectMapper;
     @Builder.Default
     ResourceLoader resourceLoader = new DefaultResourceLoader();
-
-    /*
-    final static Function<ContextEntity, ContextDto> convertContextEntityToDto = (contextEntity) -> {
-        logger.info("Got context in convertContextToDto => {}", contextEntity);
-        ContextDto contextDto = new ContextDto();
-        BeanUtils.copyProperties(contextEntity, contextDto);
-        //contextDto.setPermissions(new ArrayList<>(contextEntity.getPermissions()));
-        //contextDto.setRoles(contextEntity.getRoles());
-        return contextDto;
-    };
-
-     */
+    @Builder.Default
+    Scheduler scheduler = Schedulers.boundedElastic();
 
 
     final static Function<Role, RoleDto> roleToDto = (role) -> {
@@ -196,7 +186,7 @@ public class RedisContextService implements ContextService {
     public Mono<Context> createContext(Context context) {
 
         return Mono.just(context)
-                .publishOn(Schedulers.parallel())
+                .publishOn(scheduler)
                 .map(convertContextToContextEntity())
                 .map(ctx -> {
 
@@ -325,7 +315,7 @@ public class RedisContextService implements ContextService {
     @Override
     public Mono<Context> updateContext(Context context) {
         return Mono.just(context)
-                .publishOn(Schedulers.parallel())
+                .publishOn(scheduler)
                 .map(convertContextToContextEntity())
                 .flatMap(ctx -> contextOps.opsForValue().set(calculateContextKey(ctx.getContextId()), ctx))
                 .map(bool -> bool ? context : new Context());
@@ -335,7 +325,7 @@ public class RedisContextService implements ContextService {
 
     public Mono<ContextEntity> findContextEntity(String contextId) {
         return Mono.just(contextId)
-                .publishOn(Schedulers.boundedElastic())
+                .publishOn(scheduler)
                 .doOnNext(ctx -> logger.debug("-------- Got context id -> {}", ctx))
                 //.map(ctxId -> contextRepository.findByContextId(ctxId))
                 .map(ctxId -> contextRepository.findByContextId(ctxId))
@@ -405,7 +395,7 @@ public class RedisContextService implements ContextService {
         //contextOps.opsForHash().
 
         return Mono.just(pageRequest)
-                .publishOn(Schedulers.boundedElastic())
+                .publishOn(scheduler)
                 .doOnNext(pageRequest1 -> logger.debug("Got page request => {}", pageRequest1))
                 .doOnNext(pageRequest1 -> logger.debug("Got total count => {}", contextRepository.count()))
                 .flatMap(request -> Mono.zip(Mono.just(contextRepository.count()),
@@ -490,7 +480,7 @@ public class RedisContextService implements ContextService {
     public Flux<Role> getRolesByContextIdAndRoleIdIn(String contextId, List<String> roleIds, boolean allRoles) {
 
         return Mono.just(Tuples.of(contextId, roleIds))
-                .publishOn(Schedulers.boundedElastic())
+                .publishOn(scheduler)
                 .flatMapMany(tuple -> findContextEntity(tuple.getT1()).map(ce -> ce.getRoles()))
                 .flatMapIterable(col -> col)
                 //.flatMap(col -> Flux.fromIterable(col))
