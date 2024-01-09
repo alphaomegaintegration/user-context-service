@@ -33,13 +33,21 @@ import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
 import org.springframework.data.redis.repository.configuration.EnableRedisRepositories;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.http.codec.ServerCodecConfigurer;
+import org.springframework.stereotype.Controller;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.util.Assert;
+import org.springframework.web.bind.annotation.ControllerAdvice;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
+import org.springframework.web.reactive.result.method.annotation.ResponseEntityExceptionHandler;
 
 import javax.annotation.PostConstruct;
 import java.util.Map;
 import java.util.UUID;
+
+import static org.springframework.http.ResponseEntity.notFound;
 
 @Configuration
 //@ComponentScan(basePackages = {"com.alpha.omega.user.server"})
@@ -75,7 +83,12 @@ public class AppConfig {
                 UserNotFoundException.class, HttpStatus.NOT_FOUND,
                 ContextNotFoundException.class, HttpStatus.NOT_FOUND,
                 ServiceException.class, HttpStatus.BAD_REQUEST,
-                IllegalArgumentException.class, HttpStatus.BAD_REQUEST
+                IllegalArgumentException.class, HttpStatus.BAD_REQUEST,
+                WebClientResponseException.Unauthorized.class, HttpStatus.UNAUTHORIZED,
+                WebClientResponseException.Forbidden.class, HttpStatus.FORBIDDEN,
+                WebClientResponseException.BadRequest.class, HttpStatus.BAD_REQUEST,
+                WebClientResponseException.Conflict.class, HttpStatus.CONFLICT
+
         );
     }
 
@@ -163,5 +176,6 @@ public class AppConfig {
         });
 
     }
+
 
 }

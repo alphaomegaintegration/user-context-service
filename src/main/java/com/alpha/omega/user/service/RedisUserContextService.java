@@ -32,6 +32,7 @@ import reactor.util.function.Tuples;
 
 import java.util.*;
 import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -230,15 +231,26 @@ public class RedisUserContextService implements UserContextService {
                 .map(tuple -> userContextEntityToUserContext.apply(tuple.getT2()));
     }
 
+    Function<Mono<UserContext>, Mono<UserContextEntity>> createUserContextEntityFromUserContext(){
+        return userContext -> userContext.map(uc -> userContextRepository.findByUserIdAndContextId(uc.getUserId(), uc.getContextId())
+                .orElse(UserContextEntity.builder()
+                        .userId(uc.getUserId())
+                        .contextId(uc.getContextId())
+                        .roleId(uc.getRoleId())
+                        .createdDate(new Date())
+                        .lastModifiedByDate(new Date())
+                        .build()));
+    }
 
     @Override
     public Mono<UserContext> createUserContext(UserContext context) {
         return Mono.just(context)
                 .publishOn(scheduler)
                 .handle(validateUserContext())
-                .map(convertUserContextToContextEntity())
-                //.flatMap(ctx -> userContextTemplate.opsForValue().set(calculateUserContextKey(ctx), ctx))
-                //.map(bool -> bool ? context : new UserContext());
+                .flatMap(uc -> checkContextAndRoleExists(uc))
+                .transform(createUserContextEntityFromUserContext())
+                //.map(convertUserContextToContextEntity())
+
                 .map(uce -> {
                     uce.setEnabled(Boolean.TRUE);
                     return userContextRepository.save(uce);
@@ -361,6 +373,35 @@ public class RedisUserContextService implements UserContextService {
                 .map(convertUserContextEntityToUserContext());
     }
 
+    // assignRoleToUserContext
+
+
+
+
+    public Mono<UserContext> assignRoleToUserContext(String userId, String contextId, String roleId, String auditUser) {
+
+        final Tuple3<String, String, String> params = Tuples.of(userId, contextId, roleId);
+
+        return Mono.just(params)
+                .publishOn(scheduler)
+                .map(tuple -> {
+                    UserContext userContext = new UserContext();
+                    userContext.setContextId(tuple.getT2());
+                    userContext.setUserId(tuple.getT1());
+                    userContext.setRoleId(tuple.getT3());
+                    return userContext;
+                })
+                .flatMap(uc -> checkContextAndRoleExists(uc))
+                .map(uc -> userContextRepository.findByUserIdAndContextId(uc.getUserId(), uc.getContextId()).orElseThrow(() -> new UserNotFoundException("User Not Found")))
+                //.map(ucRoleInContextRoles())
+                .map(uce -> {
+                    uce.setRoleId(roleId);
+                    return userContextRepository.save(uce);
+                })
+                .map(convertUserContextEntityToUserContext());
+    }
+
+
     final static Mono<Tuple2<UserContextEntity, List<Role>>> USER_CONTEXT_ENTITY_LIST_TUPLE_2 = Mono.just(Tuples.of(new UserContextEntity(), Collections.emptyList()));
 
     final static Mono<Tuple2<UserContextEntity, ContextEntity>> USER_CONTEXT_ENTITY_CONTEXT_ENTITY_TUPLE_2 = Mono.just(Tuples.of(new UserContextEntity(), new ContextEntity()));
@@ -375,6 +416,7 @@ public class RedisUserContextService implements UserContextService {
         return Mono.just(params)
                 .publishOn(scheduler)
                 .map(tp3 -> userContextRepository.findByUserIdAndContextId(tp3.getT1(), tp3.getT2()).orElseThrow(() -> new UserNotFoundException("User Not Found")))
+                .doOnNext(uce -> logger.debug("addPermissionsToUserContext found uce => {}", uce))
                 .flatMap(uce -> Mono.zip(Mono.just(uce), Mono.just(contextRepository.findByContextId(uce.getContextId())),
                         (t1, t2) -> Tuples.of(t1, t2)))
                 .filter(tp -> additionalPermissionsInContextPermissions(convertUserContextEntityToUserContext().apply(tp.getT1()),
@@ -483,12 +525,24 @@ public class RedisUserContextService implements UserContextService {
                 .map(convertUserContextEntityToUserContext());
     }
 
+    BiFunction<List<String>, String, List<String>> addToList(){
+        return (list, str) -> {
+            List<String> strings = new ArrayList<>();
+            if (list != null){
+                strings.addAll(list);
+            }
+            strings.add(str);
+            return strings;
+        };
+    }
+
     @Override
     public Mono<UserContextPermissions> getUserContextByUserIdAndContextId(final UserContextRequest userContextRequest) {
 
         final List<String> roleIds = StringUtils.isBlank(userContextRequest.getRoles()) ? Collections.emptyList()
                 : Arrays.asList(userContextRequest.getRoles().split(COMMA));
 
+        logger.debug("Got roleIds => {}",roleIds);
         /*
         Optional<UserContextEntity> userContextEntity = userContextRepository.findByUserIdAndContextId(userContextRequest.getUserId(), userContextRequest.getContextId());
         if (userContextEntity.isPresent()){
@@ -504,9 +558,9 @@ public class RedisUserContextService implements UserContextService {
         return Mono.just(userContextRequest)
                 .publishOn(scheduler)
                 .doOnNext(request -> logger.debug("getUserContextByUserIdAndContextId request => {}", request))
-                .map(request -> userContextRepository.findByUserIdAndContextId(request.getUserId(), request.getContextId()).orElseThrow(() -> new UserNotFoundException("User Not Found", request)))
-                .doOnNext(uce -> logger.debug("Got uce => {}", uce))
-                .flatMap(uce -> contextService.getRolesByContextIdAndRoleIdIn(uce.getContextId(), roleIds, roleIds.isEmpty()).collectList()
+                .map(request -> userContextRepository.findByUserIdAndContextId(request.getUserId(), request.getContextId()).orElseThrow(() -> new UserNotFoundException("User or Context Not Found", request)))
+                .doOnNext(uce -> logger.debug("Got uce => {} with roleids => {}", uce,roleIds))
+                .flatMap(uce -> contextService.getRolesByContextIdAndRoleIdIn(uce.getContextId(), addToList().apply(roleIds, uce.getRoleId()), Boolean.FALSE).collectList()
                         .map(roles -> Tuples.of(roles, uce)))
                 .elapsed()
                 .map(tuple -> {
@@ -517,10 +571,10 @@ public class RedisUserContextService implements UserContextService {
                     userContextPermissions.setRoleId(tuple2.getT2().getRoleId());
                     userContextPermissions.setUserId(tuple2.getT2().getUserId());
                     userContextPermissions.setEnabled(tuple2.getT2().isEnabled());
-                    List<String> permissions = roles.stream()
+                    Set<String> permissions = roles.stream()
                             .flatMap(role -> role.getPermissions().stream())
-                            .collect(Collectors.toList());
-                    userContextPermissions.setPermissions(permissions);
+                            .collect(Collectors.toSet());
+                    userContextPermissions.setPermissions(new ArrayList<>(permissions));
                     return userContextPermissions;
                 })
 

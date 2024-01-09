@@ -14,6 +14,7 @@ import org.springframework.batch.item.ExecutionContext;
 import org.springframework.batch.repeat.RepeatStatus;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -56,9 +57,17 @@ public class UserLoadToEntityTasklet implements Tasklet, StepExecutionListener, 
     @Override
     public void accept(UserLoad userLoad) {
         UserEntity userEntity = userLoadUserEntityFunction.apply(userLoad);
-        userRepository.save(userEntity);
+        Optional<UserEntity> optionalUser =  userRepository.findByEmail(userEntity.getEmail());
+        if (!optionalUser.isPresent()){
+            userRepository.save(userEntity);
+        }
+
         UserContextEntity userContextEntity = userLoadUserContextEntityFunction.apply(userLoad);
-        userContextRepository.save(userContextEntity);
+        Optional<UserContextEntity> optionalUserContextEntity = userContextRepository.findByUserIdAndContextId(userContextEntity.getUserId(), userEntity.getContextId());
+        if (!optionalUserContextEntity.isPresent()){
+            userContextRepository.save(userContextEntity);
+        }
+
     }
 
 }

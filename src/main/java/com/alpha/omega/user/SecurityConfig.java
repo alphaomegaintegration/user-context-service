@@ -141,15 +141,20 @@ public class SecurityConfig {
         http.authorizeExchange((authorize) -> authorize ///usercontexts/user/{userId}/context/{contextId}
                         //.pathMatchers("/**").permitAll()
                         //.pathMatchers("").access()
+
+
                         .pathMatchers(HttpMethod.POST, "/contexts").hasAuthority("CREATE_CONTEXTS")
                         .pathMatchers(HttpMethod.GET, "/contexts").hasAuthority("LIST_CONTEXTS")
                         .pathMatchers(HttpMethod.POST, "/usercontexts").hasAuthority("CREATE_USER_CONTEXTS")
                         .pathMatchers(HttpMethod.GET, "/usercontexts").hasAuthority("LIST_USER_CONTEXTS")
+                        .pathMatchers(HttpMethod.POST, "/usercontexts/user/*/context/*/role/*").hasAuthority("CREATE_USER_CONTEXTS")
+                        .pathMatchers(HttpMethod.PATCH, "/usercontexts/user/*/context/*/role/*").hasAuthority("CREATE_USER_CONTEXTS")
                         .pathMatchers(HttpMethod.GET, "/usercontexts/user/*/context/*").hasAuthority("LIST_USER_CONTEXTS")
-                        .pathMatchers(HttpMethod.GET,"/actuator/env/**").hasAuthority("VIEW_CONFIGURATIONS")
+                        .pathMatchers(HttpMethod.GET,"/actuator/**").hasAuthority("VIEW_CONFIGURATIONS")
                         .anyExchange().authenticated()
-                );
-                //.httpBasic(httpBasicSpec -> httpBasicSpec.authenticationManager(authenticationManager));
+
+                )
+                .httpBasic(httpBasicSpec -> httpBasicSpec.authenticationManager(authenticationManager));
               //  .formLogin((form) -> form
               //          .loginPage("/login")
               //  );
@@ -161,7 +166,7 @@ public class SecurityConfig {
                     .jwkSetUri(keyCloakIdpProperties.jwksetUri()))
 
         );
-        http.authenticationManager(authenticationManager);
+        //http.authenticationManager(authenticationManager);
         http.csrf(csrfSpec -> csrfSpec.disable());
         return http.build();
     }

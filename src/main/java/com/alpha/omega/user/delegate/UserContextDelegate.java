@@ -48,9 +48,9 @@ public class UserContextDelegate implements UsercontextsApi, UsercontextsApiDele
     @Override
     public Mono<ResponseEntity<UserContext>> addPermissionsToUserContext(String userId, String contextId, String cacheControl, String additionalPermissions, ServerWebExchange exchange) {
         return userContextService.addPermissionsToUserContext(userId, contextId, additionalPermissions, null)
-                .doOnNext(ctx -> logger.debug("Got addRoleToUserContext  => {}", ctx))
+                .doOnNext(ctx -> logger.debug("Got addPermissionsToUserContext  => {}", ctx))
                 .map(val -> {
-                    if (StringUtils.isBlank(val.getContextId())) {
+                    if (StringUtils.isNotBlank(val.getContextId())) {
                         return ResponseEntity.status(HttpStatus.OK)
                                 .headers(headers -> headers.add(CORRELATION_ID, exchange.getAttribute(CORRELATION_ID)))
                                 .body(val);
@@ -67,7 +67,24 @@ public class UserContextDelegate implements UsercontextsApi, UsercontextsApiDele
         return userContextService.addRoleToUserContext(userId, contextId, roleId, null)
                 .doOnNext(ctx -> logger.debug("Got addRoleToUserContext  => {}", ctx))
                 .map(val -> {
-                    if (StringUtils.isBlank(val.getContextId())) {
+                    if (StringUtils.isNotBlank(val.getContextId())) {
+                        return ResponseEntity.status(HttpStatus.OK)
+                                .headers(headers -> headers.add(CORRELATION_ID, exchange.getAttribute(CORRELATION_ID)))
+                                .body(val);
+                    } else {
+                        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                                .headers(headers -> headers.add(CORRELATION_ID, exchange.getAttribute(CORRELATION_ID)))
+                                .build();
+                    }
+                });
+    }
+
+    @Override
+    public Mono<ResponseEntity<UserContext>> assignRoleToUserContext(String userId, String contextId, String roleId, String cacheControl, String additionalPermissions, ServerWebExchange exchange) {
+        return userContextService.assignRoleToUserContext(userId, contextId, roleId, null)
+                .doOnNext(ctx -> logger.debug("Got assignRoleToUserContext  => {}", ctx))
+                .map(val -> {
+                    if (StringUtils.isNotBlank(val.getContextId())) {
                         return ResponseEntity.status(HttpStatus.OK)
                                 .headers(headers -> headers.add(CORRELATION_ID, exchange.getAttribute(CORRELATION_ID)))
                                 .body(val);

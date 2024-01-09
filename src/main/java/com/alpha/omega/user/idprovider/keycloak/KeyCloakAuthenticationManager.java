@@ -23,6 +23,7 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
@@ -143,6 +144,8 @@ public class KeyCloakAuthenticationManager extends AbstractUserDetailsReactiveAu
                 .doOnNext(map -> logger.info("Got map from keycloak => {}", map));
     }
 
+
+
     public Mono<Optional<Jwt>> validLoginJwt(String token) {
 
         return Mono.just(token)
@@ -155,6 +158,7 @@ public class KeyCloakAuthenticationManager extends AbstractUserDetailsReactiveAu
         return tuple -> {
             final String username = tuple.getT1().getName();
             final String presentedPassword = (String) tuple.getT1().getCredentials();
+            logger.debug("Got username => {}",username);
             if (!BEARER_STARTS_WITH_FUNCTION.apply(presentedPassword)) {
                 //passwordGrantLoginJwt(username, presentedPassword).map(jwt -> Tuples.of(tuple.getT2(), jwt))
                 return passwordGrantLoginJwt(username, presentedPassword).map(jwt -> Tuples.of(tuple.getT2(), jwt));

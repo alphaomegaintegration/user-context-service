@@ -11,7 +11,8 @@
     "BATCH_SCHEDULE_APPLICANTS",
     "VIEW_APPLICANT_DATA",
     "VIEW_MY_SCHEDULE",
-    "VIEW_APPLICANTS_SCHEDULE"
+    "VIEW_APPLICANTS_SCHEDULE",
+    "NONE"
   ],
   "roles": [
     {
@@ -42,6 +43,13 @@
         "LIST_APPLICANTS",
         "VIEW_APPLICANT_DATA",
         "VIEW_APPLICANTS_SCHEDULE"
+      ]
+    },
+    {
+      "roleId": "noop-unhrc-bims",
+      "roleName": "noop-unhrc-bims",
+      "permissions": [
+        "NONE"
       ]
     }
   ]

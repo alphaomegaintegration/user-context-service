@@ -600,6 +600,69 @@ paths:
       tags:
         - UserContexts
       summary: gets userContext by userId and contextId
+
+    patch:
+      operationId: assignRoleToUserContext
+      description: User must have CREATE_USER_CONTEXTS permission
+      parameters:
+        - description: userId
+          explode: false
+          in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+          style: simple
+        - description: contextId
+          explode: false
+          in: path
+          name: contextId
+          required: true
+          schema:
+            type: string
+          style: simple
+        - description: roleId
+          explode: false
+          in: path
+          name: roleId
+          required: true
+          schema:
+            type: string
+          style: simple
+        - in: header
+          name: Cache-Control
+          schema:
+            type: string
+            default: no-cache
+        - in: query
+          name: additionalPermissions
+          description: additionalPermissions comma delimited
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '../generator-schemas/UserContext.json'
+          description: OK
+          headers:
+            Cache-Control:
+              description: "Cache-Control header provides important info on how long a response may be considered fresh"
+              schema:
+                type: string
+              example: "Cache-Control: max-age=3600, public, must-revalidate"
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Not Found
+      tags:
+        - UserContexts
+      summary: gets userContext by userId and contextId
   /usercontexts/user/{userId}/context/{contextId}/permissions:
     post:
       operationId: addPermissionsToUserContext

@@ -479,10 +479,13 @@ public class RedisContextService implements ContextService {
     @Override
     public Flux<Role> getRolesByContextIdAndRoleIdIn(String contextId, List<String> roleIds, boolean allRoles) {
 
+        logger.info("################ contextId => {}, roleids => {}, allRoles => {}",
+                new Object[]{contextId, roleIds, allRoles});
         return Mono.just(Tuples.of(contextId, roleIds))
                 .publishOn(scheduler)
                 .flatMapMany(tuple -> findContextEntity(tuple.getT1()).map(ce -> ce.getRoles()))
                 .flatMapIterable(col -> col)
+                .distinct()
                 //.flatMap(col -> Flux.fromIterable(col))
                 .filter(role -> allRoles ? Boolean.TRUE : roleIds.contains(role.getRoleId()))
                 .map(roleEntityToRole);

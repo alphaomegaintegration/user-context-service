@@ -22,7 +22,10 @@ public interface UserContextService {
 
     Mono<UserContext> createUserContext(Mono<UserContext> userContext, String modifiedBy, String tranasactionId, Date createdDate);
     Mono<UserContextPage> createUserContextBatch(UserContextBatchRequest batchRequest, String auditUser, String transactionId);
+    //
+    Mono<UserContext> assignRoleToUserContext(String userId, String contextId, String roleIds,String auditUser);
     Mono<UserContext> addRoleToUserContext(String userId, String contextId, String roleIds,String auditUser);
+
     Mono<UserContext> addPermissionsToUserContext(String userId, String contextId, String permissions,String auditUser);
     Mono<Void> deleteUserContextByUserContextId(String userContextId);
     Mono<UserContextPage> getAllUserContexts(PageRequest pageRequest);

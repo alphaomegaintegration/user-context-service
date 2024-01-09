@@ -16,7 +16,8 @@
     "CREATE_USERS",
     "UPDATE_USERS",
     "DELETE_USERS",
-    "VIEW_CONFIGURATIONS"
+    "VIEW_CONFIGURATIONS",
+    "NONE"
   ],
   "roles": [
     {
@@ -35,8 +36,7 @@
         "CREATE_USERS",
         "UPDATE_USERS",
         "DELETE_USERS",
-        "VIEW_CONFIGURATIONS",
-        "NONE"
+        "VIEW_CONFIGURATIONS"
       ]
     },
     {

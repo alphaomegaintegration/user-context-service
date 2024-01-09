@@ -1,0 +1,34 @@
+{
+  "jobParameters": {
+    "inMemory": true
+
+  },
+  "correlationId": "100002",
+  "users": [
+
+    {
+      "first": "unhrc-bims",
+      "last": "admin",
+      "email": "unhrc-bims.admin@unhrc.com",
+      "contextId": "unhrc-bims",
+      "role": "admin-unhrc-bims",
+      "externalId": "486c87d0-c155-bbe3-eae7-792031b4a1b9"
+    },
+    {
+      "first": "adjudicator",
+      "last": "employee",
+      "email": "adjudicator@unhrc.com",
+      "contextId": "unhrc-bims",
+      "role": "adjudicator-unhrc-bims",
+      "externalId": "a86c77d0-c155-bbe3-eae7-792031b4a1b8"
+    },
+    {
+      "first": "test",
+      "last": "noop",
+      "email": "test.noop@unhrc.com",
+      "contextId": "unhrc-bims",
+      "role": "noop-unhrc-bim",
+      "externalId": "386c87d0-d155-bbe3-eae7-792531b4a1b8"
+    }
+  ]
+}
