@@ -5,7 +5,6 @@ import com.alpha.omega.user.batch.UserLoad
 import com.alpha.omega.user.config.DefaultRedisCacheConfiguration
 import com.alpha.omega.user.idprovider.keycloak.KeyCloakConfig
 import com.alpha.omega.user.repository.UserEntity
-import org.junit.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -22,7 +21,6 @@ import org.springframework.test.web.reactive.server.WebTestClient
 import org.springframework.util.Assert
 import org.testcontainers.containers.DockerComposeContainer
 import spock.lang.Shared
-import spock.lang.Specification
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 
@@ -32,9 +30,9 @@ import java.util.function.Function
 @ContextConfiguration(initializers = AbstractIntegrationTest.Initializer.class,
         classes = [ TestConfig.class, DefaultRedisCacheConfiguration.class, AppConfig.class, KeyCloakConfig.class, SecurityConfig.class])
 @WebFluxTest()
-class UserContextServiceSpecification extends AbstractIntegrationTest{
+class UserContextServiceInt extends AbstractIntegrationTest{
 
-    private static final Logger logger = LoggerFactory.getLogger(UserContextServiceSpecification.class);
+    private static final Logger logger = LoggerFactory.getLogger(UserContextServiceInt.class);
     static String TEST_NAMESPACE = "TransactionRepositorySpecification:namespace";
     static String TEST_KEY = "test:keyer";
     @Shared
@@ -94,7 +92,7 @@ class UserContextServiceSpecification extends AbstractIntegrationTest{
         expect:
         webClient.get().uri("/contexts", 100)
                 .exchange()
-                .expectStatus().isNotFound()
+                .expectStatus().isUnauthorized()
         /*
                 .expectBody()
                 .jsonPath("$.name").isNotEmpty()

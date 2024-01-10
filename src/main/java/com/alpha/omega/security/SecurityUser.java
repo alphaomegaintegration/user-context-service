@@ -4,9 +4,11 @@ import lombok.*;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.oauth2.jwt.Jwt;
 
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.Optional;
 
 @Data
 @NoArgsConstructor
@@ -30,5 +32,7 @@ public class SecurityUser implements UserDetails {
     boolean credentialsNonExpired = Boolean.TRUE;
     @Builder.Default
     boolean enabled = Boolean.TRUE;
+    @Builder.Default
+    Optional<Jwt> jwt = Optional.empty();
 
 }

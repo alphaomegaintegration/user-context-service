@@ -10,12 +10,14 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.oauth2.jwt.Jwt;
 import reactor.core.publisher.Mono;
 
 import java.nio.charset.Charset;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -42,6 +44,23 @@ public class SecurityUtils {
 
             UserDetails user = SecurityUser.builder()
                     .authorities(grantedAuthorities)
+                    .username(userContextPermissions.getUserId())
+                    .build();
+            return user;
+        };
+    }
+
+
+    public static Function<UserContextPermissions, UserDetails> convertUserContextPermissionsToUserDetails(Optional<Jwt> jwt) {
+        return userContextPermissions -> {
+            List<GrantedAuthority> grantedAuthorities = userContextPermissions.getPermissions()
+                    .stream()
+                    .map(SimpleGrantedAuthority::new)
+                    .collect(Collectors.toList());
+
+            UserDetails user = SecurityUser.builder()
+                    .authorities(grantedAuthorities)
+                    .jwt(jwt)
                     .username(userContextPermissions.getUserId())
                     .build();
             return user;

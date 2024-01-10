@@ -20,6 +20,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+import org.springframework.security.oauth2.server.resource.authentication.BearerTokenAuthenticationToken;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -49,7 +50,6 @@ public class KeyCloakAuthenticationManager extends AbstractUserDetailsReactiveAu
      */
     private static final Logger logger = LoggerFactory.getLogger(KeyCloakAuthenticationManager.class);
 
-    //private UserDetailsService userDetailsService;
     private String defaultContext;
     private UserContextService userContextService;
     private KeyCloakUserService keyCloakUserService;
@@ -85,23 +85,17 @@ public class KeyCloakAuthenticationManager extends AbstractUserDetailsReactiveAu
 
          */
 
-        webClient = WebClient.builder()
-                .baseUrl(realmBaseUrl)
-                .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_FORM_URLENCODED_VALUE)
+        webClient = WebClient.builder().baseUrl(realmBaseUrl).defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_FORM_URLENCODED_VALUE)
                 //.clientConnector(new ReactorClientHttpConnector(httpClient))
                 .build();
-        NimbusJwtDecoder nimbusJwtDecoder = NimbusJwtDecoder.withJwkSetUri(realmJwkSetUri)
-                .build();
+        NimbusJwtDecoder nimbusJwtDecoder = NimbusJwtDecoder.withJwkSetUri(realmJwkSetUri).build();
         nimbusJwtDecoder.setJwtValidator(JwtValidators.createDefaultWithIssuer(issuerURL));
         jwtDecoder = nimbusJwtDecoder;
     }
 
     @Override
     protected Mono<UserDetails> retrieveUser(String username) {
-        final UserContextRequest userContextRequest = UserContextRequest.builder()
-                .contextId(defaultContext)
-                .userId(username)
-                .build();
+        final UserContextRequest userContextRequest = UserContextRequest.builder().contextId(defaultContext).userId(username).build();
 
         return Mono.just(userContextRequest)
                 .publishOn(this.scheduler)
@@ -109,61 +103,66 @@ public class KeyCloakAuthenticationManager extends AbstractUserDetailsReactiveAu
                 .map(SecurityUtils.convertUserContextPermissionsToUserDetails());
     }
 
+
+    protected Mono<UserDetails> retrieveUser(Authentication authentication) {
+        if (authentication instanceof BearerTokenAuthenticationToken) {
+            BearerTokenAuthenticationToken bearerToken = (BearerTokenAuthenticationToken) authentication;
+            Optional<Jwt> jwt = Optional.of(jwtDecoder.decode(bearerToken.getToken()));
+            String username = jwt.get().getClaimAsString("email");
+            UserContextRequest userContextRequest = UserContextRequest.builder()
+                    .contextId(defaultContext)
+                    .userId(username)
+                    .build();
+            return Mono.just(userContextRequest)
+                    .publishOn(this.scheduler)
+                    .flatMap(request -> userContextService.getUserContextByUserIdAndContextId(request))
+                    .map(SecurityUtils.convertUserContextPermissionsToUserDetails(jwt));
+
+        } else {
+            return this.retrieveUser(authentication.getName());
+        }
+
+    }
+
     public Mono<Optional<Jwt>> passwordGrantLoginJwt(String username, String password) {
 
-        return passwordGrantLoginMap(username, password)
-                .map(convertResultMapToJwt(jwtDecoder));
+        return passwordGrantLoginMap(username, password).map(convertResultMapToJwt(jwtDecoder));
     }
 
 
-    public Mono<Map<String,Object>> passwordGrantLoginMap(String username, String password) {
+    public Mono<Map<String, Object>> passwordGrantLoginMap(String username, String password) {
 
-        logger.info("using realmTokenUri => {}, realmClientId => {}", realmTokenUri, realmClientId);
-        logger.info("using realmClientSecret => {}, password => {}", realmClientSecret, password);
-        return webClient.post()
-                .uri(realmTokenUri)
-                .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_FORM_URLENCODED_VALUE)
-                .header(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
-                .body(BodyInserters.fromFormData("grant_type", "password")
-                        .with("username", username)
-                        .with("password", password)
-                        .with("client_id", realmClientId)
-                        .with("client_secret", realmClientSecret)
-                        .with("scope","openid")
-                )
-                .exchangeToMono(response -> {
-                    logger.debug("response.statusCode() => {}",response.statusCode());
-                    if (response.statusCode().equals(HttpStatus.OK)) {
-                        return response.bodyToMono(MAP_OBJECT);
-                    }
-                    else {
-                        // Turn to error
-                        return response.createError();
-                    }
-                })
-                .doOnNext(map -> logger.info("Got map from keycloak => {}", map));
+        logger.debug("using realmTokenUri => {}, realmClientId => {}", realmTokenUri, realmClientId);
+        //logger.info("using realmClientSecret => {}, password => {}", realmClientSecret, password);
+        return webClient.post().uri(realmTokenUri).header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_FORM_URLENCODED_VALUE).header(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE).body(BodyInserters.fromFormData("grant_type", "password").with("username", username).with("password", password).with("client_id", realmClientId).with("client_secret", realmClientSecret).with("scope", "openid")).exchangeToMono(response -> {
+            logger.debug("response.statusCode() => {}", response.statusCode());
+            if (response.statusCode().equals(HttpStatus.OK)) {
+                return response.bodyToMono(MAP_OBJECT);
+            } else {
+                // Turn to error
+                return response.createError();
+            }
+        });
     }
-
 
 
     public Mono<Optional<Jwt>> validLoginJwt(String token) {
 
-        return Mono.just(token)
-                .map(tk -> jwtDecoder.decode(tk))
-                .map(jwt -> Optional.of(jwt));
+        return Mono.just(token).map(tk -> jwtDecoder.decode(tk)).map(jwt -> Optional.of(jwt));
 
     }
 
     Function<Tuple2<Authentication, UserDetails>, Mono<Tuple2<UserDetails, Optional<Jwt>>>> basicAuthOrJwtAccess() {
         return tuple -> {
-            final String username = tuple.getT1().getName();
-            final String presentedPassword = (String) tuple.getT1().getCredentials();
-            logger.debug("Got username => {}",username);
-            if (!BEARER_STARTS_WITH_FUNCTION.apply(presentedPassword)) {
-                //passwordGrantLoginJwt(username, presentedPassword).map(jwt -> Tuples.of(tuple.getT2(), jwt))
-                return passwordGrantLoginJwt(username, presentedPassword).map(jwt -> Tuples.of(tuple.getT2(), jwt));
+            Authentication authentication = tuple.getT1();
+            UserDetails userDetails = tuple.getT2();
+            final String username = authentication.getName();
+            logger.debug("Got username => {}", username);
+            if (authentication instanceof BearerTokenAuthenticationToken) {
+                return validLoginJwt(username).map(jwt -> Tuples.of(tuple.getT2(), jwt));
             } else {
-                return validLoginJwt(presentedPassword).map(jwt -> Tuples.of(tuple.getT2(), jwt));
+                final String presentedPassword = (String) authentication.getCredentials();
+                return passwordGrantLoginJwt(username, presentedPassword).map(jwt -> Tuples.of(tuple.getT2(), jwt));
             }
         };
     }
@@ -171,10 +170,15 @@ public class KeyCloakAuthenticationManager extends AbstractUserDetailsReactiveAu
     // JwtAuthenticationToken
     @Override
     public Mono<Authentication> authenticate(final Authentication authentication) {
-        String username = authentication.getName();
-        String presentedPassword = (String) authentication.getCredentials();
-        // @formatter:off
-        return retrieveUser(username)
+        /*
+        username might be a token or user in basic auth
+        BearerTokenAuthenticationToken or UsernamePasswordAuthenticationToken
+         */
+        //String username = authentication.getName();
+        //logger.info("authentication name => {} TOKEN ??????? => {}", authentication.getClass().getName(), username);
+
+        return   Mono.just(authentication)
+                .flatMap(authen -> retrieveUser(authen))
                 .publishOn(this.scheduler)
                 .doOnNext(userDetails -> defaultPreAuthenticationChecks(userDetails))
 

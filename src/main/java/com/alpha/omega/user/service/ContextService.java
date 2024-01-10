@@ -18,13 +18,9 @@ public interface ContextService {
     Mono<Context> findByContextId(String contextId);
     Mono<Context> addAdditionalRolesByContextId(String contextId, Mono<Role> role);
     Mono<Void> deleteContextByContextId(String contextId);
-
     Mono<ContextPage> getAllContextEntities(PageRequest pageRequest);
-
     Mono<RolePage> getRolesByContextId(String contextId);
-
     Mono<Context> getContextByContextId(String contextId);
-
     Mono<Context> updateContextByContextId(String contextId, Mono<Context> context);
     Mono<Role> getRoleByContextIdAndRoleId(String contextId, String roleId);
     Flux<Role> getRolesByContextIdAndRoleIdIn(String contextId, List<String> roleIds, boolean allRoles);

@@ -2,6 +2,7 @@
   "id": "user-context-service",
   "contextId": "user-context-service",
   "contextName": "user-context-service",
+  "description": "The context for user-context-service",
   "enabled": true,
   "permissions": [
     "CREATE_CONTEXTS",

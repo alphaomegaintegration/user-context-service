@@ -95,7 +95,6 @@ public class ServiceUtils {
         return role;
     };
 
-
     public final static Function<Role, RoleDto> roleToRoleDto = (role) -> {
 
         RoleDto roleDto = new RoleDto();
@@ -105,18 +104,17 @@ public class ServiceUtils {
         return roleDto;
     };
 
-
-
     public final static Function<ContextEntity, Context> convertContextEntityToContext = (contextEntity) -> {
         logger.debug("Got context in convertContextToDto => {}", contextEntity);
         Context context = new Context();
         BeanUtils.copyProperties(contextEntity, context);
         context.setPermissions(new HashSet<>(contextEntity.getPermissions()));
-        context.setRoles(contextEntity.getRoles().stream().map(roleEntityToRole).collect(Collectors.toList()));
+        context.setRoles(contextEntity.getRoles().stream()
+                        .filter(Objects::nonNull)
+                .map(roleEntityToRole)
+                .collect(Collectors.toList()));
         return context;
     };
-
-
 
     public static String formatValidationErrors(List<ServiceError> errors, String entity) {
 
@@ -124,7 +122,6 @@ public class ServiceUtils {
                 .append(" Errors: ").append(errors).toString();
 
     }
-
 
     public static Function<Long,String> calculateElapsedMessage() {
             return (val) -> {

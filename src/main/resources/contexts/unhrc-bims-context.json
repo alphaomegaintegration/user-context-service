@@ -2,6 +2,7 @@
   "id": "unhrc-bims",
   "contextId": "unhrc-bims",
   "contextName": "unhrc-bims",
+  "description": "The context for unhrc-bims",
   "enabled": true,
   "permissions": [
     "SCHEDULE_APPLICANTS",

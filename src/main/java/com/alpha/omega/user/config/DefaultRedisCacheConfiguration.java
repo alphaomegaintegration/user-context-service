@@ -21,10 +21,7 @@ import org.springframework.core.env.Environment;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.data.redis.connection.*;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
-import org.springframework.data.redis.core.ReactiveRedisTemplate;
-import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
-import org.springframework.data.redis.core.RedisKeyValueAdapter;
-import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.*;
 import org.springframework.data.redis.core.convert.KeyspaceConfiguration;
 import org.springframework.data.redis.core.convert.MappingConfiguration;
 import org.springframework.data.redis.core.index.IndexConfiguration;
@@ -234,7 +231,6 @@ public class DefaultRedisCacheConfiguration {
         @Override
         public void onApplicationEvent(ContextRefreshedEvent event) {
             Boolean flushDB = environment.getProperty("user.batch.db.flush", Boolean.class, Boolean.FALSE);
-            //redisTemplate.opsForHash().s
 
             if (flushDB){
                 Mono.just(flushDB)

@@ -434,6 +434,8 @@
                             <goal>generate</goal>
                         </goals>
                         <configuration>
+                            <generateApiTests>false</generateApiTests>
+                            <generateModelTests>false</generateModelTests>
                             <apiPackage>com.alpha.omega.user.server</apiPackage>
                             <modelPackage>com.alpha.omega.user.model</modelPackage>
                             <inputSpec>${project.basedir}/src/main/resources/openapi.yaml</inputSpec>
@@ -470,6 +472,8 @@
                             <goal>generate</goal>
                         </goals>
                         <configuration>
+                            <generateApiTests>false</generateApiTests>
+                            <generateModelTests>false</generateModelTests>
                             <apiPackage>com.alpha.omega.user.client</apiPackage>
                             <modelPackage>com.alpha.omega.user.model</modelPackage>
                             <invokerPackage>com.alpha.omega.user.client</invokerPackage>

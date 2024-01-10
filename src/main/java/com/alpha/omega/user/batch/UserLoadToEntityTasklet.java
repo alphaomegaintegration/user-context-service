@@ -12,6 +12,7 @@ import org.springframework.batch.core.scope.context.ChunkContext;
 import org.springframework.batch.core.step.tasklet.Tasklet;
 import org.springframework.batch.item.ExecutionContext;
 import org.springframework.batch.repeat.RepeatStatus;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -55,6 +56,7 @@ public class UserLoadToEntityTasklet implements Tasklet, StepExecutionListener, 
     }
 
     @Override
+    @Transactional
     public void accept(UserLoad userLoad) {
         UserEntity userEntity = userLoadUserEntityFunction.apply(userLoad);
         Optional<UserEntity> optionalUser =  userRepository.findByEmail(userEntity.getEmail());

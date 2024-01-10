@@ -6,6 +6,7 @@ import com.alpha.omega.user.service.RedisUserContextService;
 import com.alpha.omega.user.service.UserContextService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.*;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
@@ -116,7 +117,8 @@ public class SecurityConfig {
     }
 
     @Bean("idProviderAuthenticationManager")
-    KeyCloakAuthenticationManager keyCloakAuthenticationManager(UserContextService userContextService,
+    @ConditionalOnMissingBean
+    ReactiveAuthenticationManager keyCloakAuthenticationManager(UserContextService userContextService,
                                                                 KeyCloakUserService keyCloakUserService,
                                                                 Environment env){
         return KeyCloakAuthenticationManager.builder()
@@ -161,11 +163,8 @@ public class SecurityConfig {
         //WebFilter webFilter = createHttpBasicFilter(authenticationManager);
         //http.addFilterAt(webFilter, SecurityWebFiltersOrder.HTTP_BASIC);
         //http.oauth2Client(oAuth2ClientSpec -> oAuth2ClientSpec.authorizationRequestResolver())
-        http.oauth2ResourceServer(oAuth2ResourceServerSpec ->
-            oAuth2ResourceServerSpec.jwt(jwtSpec -> jwtSpec.jwtAuthenticationConverter(new KeycloakJwtRolesReactiveConverter())
-                    .jwkSetUri(keyCloakIdpProperties.jwksetUri()))
-
-        );
+        http.oauth2ResourceServer(oAuth2ResourceServerSpec -> oAuth2ResourceServerSpec.authenticationManagerResolver(new KeyCloakReactiveAuthenticationManagerResolver(authenticationManager)));
+        //http.oauth2ResourceServer(oAuth2ResourceServerSpec -> oAuth2ResourceServerSpec.bearerTokenConverter());
         //http.authenticationManager(authenticationManager);
         http.csrf(csrfSpec -> csrfSpec.disable());
         return http.build();

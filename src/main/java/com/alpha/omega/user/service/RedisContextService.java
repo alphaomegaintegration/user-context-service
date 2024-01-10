@@ -2,6 +2,7 @@ package com.alpha.omega.user.service;
 
 import com.alpha.omega.user.model.*;
 import com.alpha.omega.user.repository.*;
+import com.alpha.omega.user.validator.ContextValidator;
 import com.alpha.omega.user.validator.ServiceError;
 import com.alpha.omega.user.validator.UserContextValidator;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -59,6 +60,9 @@ public class RedisContextService implements ContextService {
     ResourceLoader resourceLoader = new DefaultResourceLoader();
     @Builder.Default
     Scheduler scheduler = Schedulers.boundedElastic();
+    @Builder.Default
+    ContextValidator contextValidator = new ContextValidator();
+
 
 
     final static Function<Role, RoleDto> roleToDto = (role) -> {
@@ -125,7 +129,7 @@ public class RedisContextService implements ContextService {
             context.setCreatedTime(createdOffsetDate);
             context.setModifiedTime(modifiedOffsetDate);
             context.setPermissions(new HashSet<>(contextEntity.getPermissions()));
-            context.setRoles(contextEntity.getRoles().stream().map(roleEntityToRole).collect(Collectors.toList()));
+            context.setRoles(new ArrayList<>(contextEntity.getRoles().stream().map(roleEntityToRole).collect(Collectors.toSet())));
             return context;
         } else {
             return new Context();
@@ -170,7 +174,8 @@ public class RedisContextService implements ContextService {
             //contextEntity.setLastModifiedBy(inContextDto.getLastModifiedBy());
             contextEntity.setLastModifiedByDate(now);
             contextEntity.setPermissions(new ArrayList<>(context.getPermissions()));
-            contextEntity.setRoles(context.getRoles().stream().map(roleToRoleEntity).collect(Collectors.toSet()));
+            contextEntity.setRoles(new HashSet<>(context.getRoles().stream().map(roleToRoleEntity).collect(Collectors.toSet())));
+            logger.info("Got contextEntity in convertContextToContextEntity => {}", contextEntity);
             return contextEntity;
         };
     }
@@ -187,17 +192,18 @@ public class RedisContextService implements ContextService {
 
         return Mono.just(context)
                 .publishOn(scheduler)
+                .handle(validateContext())
                 .map(convertContextToContextEntity())
                 .map(ctx -> {
 
                     List<RoleEntity> roles = ctx.getRoles().stream()
+                            //.map(persistRoleEntity)
                             .map(role -> roleRepository.save(role))
                             .collect(Collectors.toList());
                     ctx.setRoles(roles);
-                    contextRepository.save(ctx);
-                    return ctx;
+                    return contextRepository.save(ctx);
                 })
-                .map(ServiceUtils.convertContextEntityToContext);
+                .map(convertContextEntityToContext);
 //                .flatMap(ctx -> Mono.zip(contextOps.opsForValue()
 //                        .set(calculateContextKey(ctx.getContextId()), ctx),
 //                        Mono.just(ctx)))
@@ -441,15 +447,16 @@ public class RedisContextService implements ContextService {
     @Override
     public Mono<Context> getContextByContextId(String contextId) {
         return findByContextId(contextId)
-                .handle(validateContext(contextId));
+                .handle(validatePersistedContext(contextId));
     }
 
-    BiConsumer<Context, SynchronousSink<Context>> validateContext(String contextId) {
+    BiConsumer<Context, SynchronousSink<Context>> validatePersistedContext(String contextId) {
         return (context, sink) -> {
-
             if (context == null) {
                 sink.error(new ChangeSetPersister.NotFoundException());
             }
+
+
 
             if (contextId.equals(context.getContextId())) {
                 sink.next(context);
@@ -458,6 +465,20 @@ public class RedisContextService implements ContextService {
             }
         };
     }
+
+    BiConsumer<Context, SynchronousSink<Context>> validateContext() {
+        logger.debug("In validateContext()");
+        return (context, sink) -> {
+            List<ServiceError> errors = contextValidator.validate(context);
+            if (errors.isEmpty()) {
+                sink.next(context);
+            } else {
+                String message = ServiceUtils.formatValidationErrors(errors, "context");
+                sink.error(new IllegalArgumentException(message));
+            }
+        };
+    }
+
 
     @Override
     public Mono<Context> updateContextByContextId(String contextId, Mono<Context> context) {

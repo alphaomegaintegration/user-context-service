@@ -293,7 +293,10 @@ public class KeyCloakUserService implements ItemWriter<UserEntity>, StepExecutio
 
     final static BiConsumer<Throwable, Object> withErrorConsumer(){
         return (Throwable throwable, Object obj) -> {
-            logger.error("Got some error ",throwable);
+            if (logger.isDebugEnabled()){
+                logger.error("Got some error ",throwable);
+            }
+
             if (throwable instanceof WebClientResponseException){
                 WebClientResponseException ex = (WebClientResponseException)throwable;
                 //if (ex.getStatusCode().value() == 409)
