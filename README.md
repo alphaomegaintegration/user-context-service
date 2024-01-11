@@ -1,150 +1,64 @@
-# Solution Design Document
+# Microservice README
 
+This README provides instructions for setting up and running the User Context Service microservice. Follow the steps below to ensure a smooth deployment.
 
-## Problem Statement
+## Prerequisites
 
-Develop a Spring Boot API with Spring Batch capabilities to manage user entities, user context entities, context entities, and role entities. Implement a Spring Batch process to load users from a CSV file into Redis and an Identity Provider.
+- Docker and Docker Compose
+- Java Development Kit (JDK) version 17 or later
+- Maven
 
-## Proposed Solution
+## Step 1: Start Services
 
-1. API Development
-   Key Components:
+1. Navigate to the directory containing the `docker-compose.yaml` file.
+2. Run the startup script to launch the required services:
 
-Spring Boot: Framework for building web applications with embedded Tomcat server.
-Spring Data JPA: Manages persistence for entities using a relational database.
-Spring Web: Provides RESTful API development features.
-Redis: In-memory data store for caching user data.
-Identity Provider: External system for authentication and authorization.
-API Endpoints:
+    ```bash
+    cd /path/to/project
+    ./startServices.sh
+    ```
+## Step 2: Set up Keycloak and extract client ids and secrets
 
-CRUD operations for UserEntity, UserContextEntity, ContextEntity, and RoleEntity.
-Endpoint to trigger the Spring Batch job for user loading.
-Endpoint to monitor job status and retrieve logs.
-Authentication and Authorization:
+Use this article of a reference on how to setup keycloak https://www.mastertheboss.com/keycloak/how-to-use-keycloak-admin-rest-api/#google_vignette
+## Step 3: Set Environment Variables
 
-Integrate with the Identity Provider for user authentication and access control.
-2. Spring Batch Process
-   Job Configuration:
+1. Navigate to the project root directory.
+2. Create or use an existing `.env` file and set the following environment variables:
 
-Define a Spring Batch job with a single step:
-CSV ItemReader: Reads user data from a CSV file.
-UserLoad ItemProcessor: Processes UserLoad objects (validation, mapping, password security).
-UserEntity ItemWriter: Writes UserEntity objects to Redis and the Identity Provider.
-Error Handling:
+    ```bash
 
-Implement robust error handling with logging and potential retry mechanisms.
-Transactionality:
+    export POSTGRES_URL=jdbc:postgresql://localhost:5432/batch
+    export POSTGRES_USER=batchuser
+    export POSTGRES_PASSWORD=password
 
-Ensure consistency across Redis and Identity Provider updates using Spring Batch's transaction management.
-Security:
+    export REDIS_HOST=localhost
+    export REDIS_PORT=6379
+    export REDIS_SERVER_MODE=standalone
 
-Protect sensitive data (passwords) during processing and transmission.
-Configuration:
+    export USER_BATCH_CSV_FILES=classpath:users.csv
+    export USER_BATCH_FLUSH_DB=false
 
-Externalize configuration for job parameters, data sources, and credentials.
-Monitoring and Logging:
+    export KEYCLOAK_CLIENT_SECRET=client_secret
+    export KEYCLOAK_CLIENT_ID=user-context-service
+    export KEYCLOAK_REALM=user-context-service
+    export KEYCLOAK_BASE_URL=http://localhost:8080
+    export KEYCLOAK_TOKEN_URI=/realms/user-context-service/protocol/openid-connect/token
+    export KEYCLOAK_JWKSET_URI=http://localhost:8080/realms/user-context-service/protocol/openid-connect/certs
+    export KEYCLOAK_ISSUER_URL=http://localhost:8080/realms/user-context-service
+    export KEYCLOAK_ADMIN_USER=admin
+    export KEYCLOAK_ADMIN_PASSWORD=password
+    export KEYCLOAK_ADMIN_CLIENT_SECRET=client_secret
+    export KEYCLOAK_ADMIN_CLIENT_ID=admin-cli
+    ```
 
-Integrate with Spring Batch Admin for job monitoring and logging.
-## Additional Considerations
+## Step 4: Run the Application
 
-Testing: Implement thorough unit and integration tests to ensure API and batch process reliability.
-Deployment: Package the application for deployment to a suitable environment (e.g., containerization).
-Maintenance: Plan for ongoing maintenance, updates, and monitoring.
-Scalability: Consider scalability requirements for high-volume user data.
-Performance: Optimize performance for efficient user data management and retrieval.
+Execute the following command to start the application:
 
-@startuml
-
-entity UserEntity {
-* id
-firstName
-lastName
-companyName
-email
-password
-externalId
-country
-mailCode
-created
-}
-
-entity ContextEntity {
-* id
-contextId
-contextName
-description
-name
-enabled
-permissions
-* roles
-transactionId
-createdBy
-lastModifiedBy
-createdDate
-lastModifiedByDate
-}
-
-entity UserContextEntity {
-* id
-userId
-contextId
-roleId
-additionalPermissions
-enabled
-transactionId
-createdBy
-lastModifiedBy
-createdDate
-lastModifiedByDate
-additionalRoles
-}
-
-entity RoleEntity {
-* id
-roleId
-roleName
-permissions
-}
-
-UserEntity ||--o{ UserContextEntity : "is associated with"
-ContextEntity ||--o{ UserContextEntity : "is associated with"
-RoleEntity ||--o{ ContextEntity : "belongs to"
-RoleEntity ||--o{ UserContextEntity : "can be assigned to (additional)"
-
-@enduml
-
-
-@startuml
-
-skinparam componentStyle uml2
-
-component "Spring Batch\nJob" as Job
-component "CSV ItemReader" as Reader
-component "UserLoad ItemProcessor" as Processor
-component "UserEntity ItemWriter" as Writer
-database "Redis" as Redis
-database "Identity Provider" as IDP
-
-Job --> Reader
-Reader --> Processor
-Processor --> Writer
-Writer --> Redis
-Writer --> IDP
-
-@enduml
-
-
-
-# user-context-service
-Service to manage users
-
-1. Define reusable security model to use across challenges
-   a. Context 
-   b. UserContext
-2. Define process for loading security pricinpals into persistence store
-
-
-```shell
-http GET https://randomuser.me/api results==20 noinfo==true nat==us format==csv inc==name,email,location  > src/test/resources/test-users-1.csv
-
+```bash
+./mvnw clean package -Dmaven.test.skip=true && java -jar target/user-context-service-0.0.1-SNAPSHOT.jar
 ```
+
+The microservice will be deployed and accessible at the specified configurations.
+
+Note: Ensure that all dependencies and prerequisites are met before running the above commands. Adjust any file paths or configurations as needed for your environment.

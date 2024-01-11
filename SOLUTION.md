@@ -4,14 +4,20 @@
 
 ## Problem Statement
 
+How do we create an API for managing domain specific roles and 
+permissions to be used across various 'contexts'. These contexts 
+could represent a domain covered by a microservice. 
+
 - Develop a Spring Boot and Spring Batch-based API for managing users, contexts, roles, and security.
 - Integrate with Redis for persistent storage and an external Identity Provider (IDP).
 - Implement core features:
     1. Load users from CSV files into Redis and IDP.
     2. Load users from JSON files into Redis and IDP.
-    3. Provide a consistent security model.
-    4. Offer REST endpoints for managing security models.
-    5. Integrate with apps using Spring Security.
+    3. Provide token brokering via REST endpoints (Simulate Basic Auth)
+    4. Provide token validation and claim discovery via REST endpoints
+    5. Offer REST endpoints for managing contexts, users, usercontexts.
+    6. Offer fine grained security model for domain
+    7. Integrate with apps using Spring Security.
 
 ## Architecture Overview
 
