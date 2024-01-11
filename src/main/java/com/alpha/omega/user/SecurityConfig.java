@@ -1,9 +1,12 @@
 package com.alpha.omega.user;
 
 import com.alpha.omega.security.ClientRegistrationConfig;
+import com.alpha.omega.user.delegate.PublicDelegate;
 import com.alpha.omega.user.idprovider.keycloak.*;
+import com.alpha.omega.user.server.PublicApiController;
 import com.alpha.omega.user.service.RedisUserContextService;
 import com.alpha.omega.user.service.UserContextService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -134,6 +137,20 @@ public class SecurityConfig {
                 .build();
     }
 
+    @Bean
+    PublicDelegate PublicDelegate(ObjectMapper objectMapper,
+                                  @Qualifier("idProviderAuthenticationManager") ReactiveAuthenticationManager keyCloakAuthenticationManager){
+        return PublicDelegate.builder()
+                .keyCloakAuthenticationManager((KeyCloakAuthenticationManager)keyCloakAuthenticationManager)
+                .objectMapper(objectMapper)
+                .build();
+    }
+
+    @Bean
+    PublicApiController publicApiController(PublicDelegate publicDelegate){
+        return new PublicApiController(publicDelegate);
+    }
+
     @Order(Ordered.HIGHEST_PRECEDENCE)
     @Bean
     SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http,
@@ -144,7 +161,7 @@ public class SecurityConfig {
                         //.pathMatchers("/**").permitAll()
                         //.pathMatchers("").access()
 
-
+                        .pathMatchers("/public/**").permitAll()
                         .pathMatchers(HttpMethod.POST, "/contexts").hasAuthority("CREATE_CONTEXTS")
                         .pathMatchers(HttpMethod.GET, "/contexts").hasAuthority("LIST_CONTEXTS")
                         .pathMatchers(HttpMethod.POST, "/usercontexts").hasAuthority("CREATE_USER_CONTEXTS")

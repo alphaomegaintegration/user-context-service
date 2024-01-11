@@ -12,6 +12,8 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.oauth2.jwt.Jwt;
 import reactor.core.publisher.Mono;
+import reactor.util.function.Tuple2;
+import reactor.util.function.Tuples;
 
 import java.nio.charset.Charset;
 import java.util.Base64;
@@ -27,6 +29,8 @@ import static com.alpha.omega.user.utils.Constants.COLON;
 public class SecurityUtils {
 
 
+    public final static String BASIC_PREFIX = "Basic ";
+
     public static String basicAuthCredsFrom(String username, String password){
         return Base64.getEncoder().encodeToString(new StringBuilder(username)
                 .append(COLON)
@@ -34,6 +38,12 @@ public class SecurityUtils {
                 .toString().getBytes(Charset.defaultCharset()));
     }
 
+    public static Tuple2<String,String> fromBasicAuthToTuple(String basicAuth){
+        String token = basicAuth.replace(BASIC_PREFIX,"");
+        String decoded = new String(Base64.getDecoder().decode(token.getBytes(Charset.defaultCharset())));
+        String[] array = decoded.split(COLON);
+        return Tuples.of(array[0],array[1]);
+    }
 
     public static Function<UserContextPermissions, UserDetails> convertUserContextPermissionsToUserDetails() {
         return userContextPermissions -> {

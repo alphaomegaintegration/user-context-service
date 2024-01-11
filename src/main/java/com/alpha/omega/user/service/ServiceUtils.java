@@ -8,6 +8,8 @@ import com.alpha.omega.user.repository.RoleDto;
 import com.alpha.omega.user.repository.RoleEntity;
 import com.alpha.omega.user.repository.UserContextEntity;
 import com.alpha.omega.user.validator.ServiceError;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,12 +18,15 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.io.Resource;
 import org.springframework.data.redis.serializer.Jackson2JsonRedisSerializer;
 import reactor.core.publisher.Mono;
+import reactor.util.function.Tuple2;
+import reactor.util.function.Tuples;
 
 import java.math.BigDecimal;
 import java.nio.charset.Charset;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -167,6 +172,7 @@ public class ServiceUtils {
     public final static String ROLE_KEY_PREFIX = "roleEntity";
     public final static String CLIENT_REGISTRATION_KEY_PREFIX = "clientRegistrationEntity";
     public final static String ALL_USER_CONTEXT_KEY_PREFIX = USER_CONTEXT_KEY_PREFIX+COLON+STAR;
+    public final static String BASIC_PREFIX = "Basic ";
 
     public static final BigDecimal ONE_THOUSAND = new BigDecimal(1000);
     public static final String ELAPSED_FORMAT_STR = "Seconds %.3f";
@@ -190,5 +196,11 @@ public class ServiceUtils {
 
         }
         return value;
+    }
+
+    public static BiFunction<Map<String,Object>, ObjectMapper, JsonNode> convertToJsonNode(){
+        return (map,objectMapper) -> {
+            return objectMapper.convertValue(map, JsonNode.class);
+        };
     }
 }

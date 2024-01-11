@@ -134,7 +134,16 @@ public class KeyCloakAuthenticationManager extends AbstractUserDetailsReactiveAu
 
         logger.debug("using realmTokenUri => {}, realmClientId => {}", realmTokenUri, realmClientId);
         //logger.info("using realmClientSecret => {}, password => {}", realmClientSecret, password);
-        return webClient.post().uri(realmTokenUri).header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_FORM_URLENCODED_VALUE).header(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE).body(BodyInserters.fromFormData("grant_type", "password").with("username", username).with("password", password).with("client_id", realmClientId).with("client_secret", realmClientSecret).with("scope", "openid")).exchangeToMono(response -> {
+        return webClient.post().uri(realmTokenUri)
+                .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_FORM_URLENCODED_VALUE)
+                .header(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
+                .body(BodyInserters.fromFormData("grant_type", "password")
+                        .with("username", username)
+                        .with("password", password)
+                        .with("client_id", realmClientId)
+                        .with("client_secret", realmClientSecret)
+                        .with("scope", "openid"))
+                .exchangeToMono(response -> {
             logger.debug("response.statusCode() => {}", response.statusCode());
             if (response.statusCode().equals(HttpStatus.OK)) {
                 return response.bodyToMono(MAP_OBJECT);

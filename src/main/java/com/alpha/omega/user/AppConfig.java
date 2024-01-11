@@ -2,6 +2,7 @@ package com.alpha.omega.user;
 
 import com.alpha.omega.user.batch.BatchJobService;
 import com.alpha.omega.user.delegate.ContextsDelegate;
+import com.alpha.omega.user.delegate.PublicDelegate;
 import com.alpha.omega.user.delegate.UserContextDelegate;
 import com.alpha.omega.user.exception.ContextNotFoundException;
 import com.alpha.omega.user.exception.ReactiveExceptionHandler;
@@ -161,6 +162,7 @@ public class AppConfig {
         UsercontextsApiController controller = new UsercontextsApiController(userContextDelegate);
         return controller;
     }
+
 
 
 

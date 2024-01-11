@@ -7,6 +7,7 @@ tags:
   - name: Contexts
   - name: UserContexts
   - name: Users
+  - name: Public
 paths:
   /contexts:
     post:
@@ -1015,6 +1016,53 @@ paths:
       tags:
         - UserContexts
       summary: gets batch job status by jobId
+
+  /public/login:
+    get:
+      operationId: getPublicLogin
+      description: Open endpoint
+      parameters:
+        - description: contextId
+          explode: false
+          in: header
+          name: contextId
+          required: false
+          schema:
+            type: string
+          style: simple
+        - description: authorization
+          explode: false
+          in: header
+          name: authorization
+          required: true
+          schema:
+            type: string
+          style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ObjectNode'
+          description: OK
+          headers:
+            Cache-Control:
+              description: "Cache-Control header provides important info on how long a response may be considered fresh"
+              schema:
+                type: string
+              example: "Cache-Control: max-age=3600, public, must-revalidate"
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Not Found
+      tags:
+        - Public
+      summary: get token with username/password
+
 components:
   schemas:
     UserLoad:
@@ -1023,6 +1071,8 @@ components:
       type: BatchUserRequest
     BatchUserResponse:
       type: BatchUserResponse
+    ObjectNode:
+      type: ObjectNode
   securitySchemes:
     basicAuth:
       scheme: basic

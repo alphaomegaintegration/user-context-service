@@ -486,7 +486,7 @@
                                 <importMapping>BatchUserResponse=com.alpha.omega.user.batch.BatchUserResponse</importMapping>
                             </importMappings>
                             <typeMappings>
-                                <typeMapping>ObjectNode=com.fasterxml.jackson.databind.node.ObjectNode</typeMapping>
+                                <typeMapping>ObjectNode=ObjectNode</typeMapping>
                                 <typeMapping>UserLoad=UserLoad</typeMapping>
                                 <typeMapping>BatchUserRequest=BatchUserRequest</typeMapping>
                                 <typeMapping>BatchUserResponse=BatchUserResponse</typeMapping>
