@@ -36,6 +36,7 @@ import org.springframework.data.redis.repository.configuration.EnableRedisReposi
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.codec.ServerCodecConfigurer;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.oauth2.jwt.JwtValidationException;
 import org.springframework.stereotype.Controller;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -90,7 +91,8 @@ public class AppConfig {
                 WebClientResponseException.Forbidden.class, HttpStatus.FORBIDDEN,
                 WebClientResponseException.BadRequest.class, HttpStatus.BAD_REQUEST,
                 WebClientResponseException.Conflict.class, HttpStatus.CONFLICT,
-                JwtValidationException.class, HttpStatus.UNAUTHORIZED
+                JwtValidationException.class, HttpStatus.UNAUTHORIZED,
+                BadCredentialsException.class, HttpStatus.UNAUTHORIZED
 
         );
     }

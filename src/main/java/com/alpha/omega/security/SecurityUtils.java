@@ -30,6 +30,8 @@ public class SecurityUtils {
 
 
     public final static String BASIC_PREFIX = "Basic ";
+    public final static String BEARER_PREFIX = "Bearer ";
+    public final static String EMPTY_STRING = "";
 
     public static String basicAuthCredsFrom(String username, String password){
         return Base64.getEncoder().encodeToString(new StringBuilder(username)
@@ -39,10 +41,15 @@ public class SecurityUtils {
     }
 
     public static Tuple2<String,String> fromBasicAuthToTuple(String basicAuth){
-        String token = basicAuth.replace(BASIC_PREFIX,"");
+        String token = basicAuth.replace(BASIC_PREFIX,EMPTY_STRING);
         String decoded = new String(Base64.getDecoder().decode(token.getBytes(Charset.defaultCharset())));
         String[] array = decoded.split(COLON);
         return Tuples.of(array[0],array[1]);
+    }
+
+    public static String fromBearerHeaderToToken(String authorization) {
+        String token = authorization.replace(BEARER_PREFIX, EMPTY_STRING);
+        return token;
     }
 
     public static Function<UserContextPermissions, UserDetails> convertUserContextPermissionsToUserDetails() {
@@ -103,4 +110,6 @@ public class SecurityUtils {
     public static Authentication noOpAuthentication(String username){
         return new AnonymousAuthenticationToken(username, username, Collections.singletonList(new SimpleGrantedAuthority(username.toLowerCase())));
     }
+
+
 }

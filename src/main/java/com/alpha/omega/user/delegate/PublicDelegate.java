@@ -1,5 +1,6 @@
 package com.alpha.omega.user.delegate;
 
+import com.alpha.omega.security.SecurityUser;
 import com.alpha.omega.security.SecurityUtils;
 import com.alpha.omega.user.idprovider.keycloak.KeyCloakAuthenticationManager;
 import com.alpha.omega.user.server.PublicApi;
@@ -13,9 +14,12 @@ import lombok.NoArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
+
+import java.util.Optional;
 
 @Builder
 @NoArgsConstructor
@@ -33,7 +37,19 @@ public class PublicDelegate implements PublicApiDelegate {
         Tuple2<String,String> userPass = SecurityUtils.fromBasicAuthToTuple(authorization);
         return keyCloakAuthenticationManager.passwordGrantLoginMap(userPass.getT1(), userPass.getT2())
                 .map(map -> ServiceUtils.convertToJsonNode().apply(map, objectMapper))
-                .map(jsonNode -> ResponseEntity.ok((ObjectNode)jsonNode));
+                .cast(ObjectNode.class)
+                .map(objectNode -> ResponseEntity.ok(objectNode));
 
+    }
+
+    @Override
+    public Mono<ResponseEntity<ObjectNode>> validateToken(String authorization, ServerWebExchange exchange) {
+        String extractedToken = SecurityUtils.fromBearerHeaderToToken(authorization);
+        return keyCloakAuthenticationManager.validLoginJwt(extractedToken)
+                .filter(Optional::isPresent)
+                .switchIfEmpty(Mono.defer(() -> Mono.error(new BadCredentialsException("Invalid Credentials"))))
+                .map(map -> ServiceUtils.convertToJsonNode().apply(map.get().getClaims(), objectMapper))
+                .cast(ObjectNode.class)
+                .map(objectNode -> ResponseEntity.ok(objectNode));
     }
 }

@@ -190,10 +190,8 @@ public class KeyCloakAuthenticationManager extends AbstractUserDetailsReactiveAu
                 .flatMap(authen -> retrieveUser(authen))
                 .publishOn(this.scheduler)
                 .doOnNext(userDetails -> defaultPreAuthenticationChecks(userDetails))
-
                 .map(userDetails -> Tuples.of(authentication, userDetails))
                 .flatMap(basicAuthOrJwtAccess())
-               // .flatMap(userDetails -> passwordGrantLoginJwt(username, presentedPassword).map(jwt -> Tuples.of(userDetails, jwt)))
                 .filter((tuple) -> tuple.getT2().isPresent())
                 .switchIfEmpty(Mono.defer(() -> Mono.error(new BadCredentialsException("Invalid Credentials"))))
                 .doOnNext(tuple -> defaultPostAuthenticationChecks(tuple.getT1()))
@@ -205,12 +203,12 @@ public class KeyCloakAuthenticationManager extends AbstractUserDetailsReactiveAu
             public User(String username, String password, boolean enabled, boolean accountNonExpired,
 			boolean credentialsNonExpired, boolean accountNonLocked,
 			Collection<? extends GrantedAuthority> authorities)
+			User newUser = new User(user.getUsername(), jwt.getTokenValue(), user.isEnabled(), user.isAccountNonExpired(),
+                jwt.getExpiresAt().isBefore(Instant.now()),user.isAccountNonLocked(), user.getAuthorities());
              */
         UserDetails user = tuple.getT1();
         Jwt jwt = tuple.getT2().get();
-        User newUser = new User(user.getUsername(), jwt.getTokenValue(), user.isEnabled(), user.isAccountNonExpired(),
-                jwt.getExpiresAt().isBefore(Instant.now()),user.isAccountNonLocked(), user.getAuthorities());
-        JwtAuthenticationToken token = new JwtAuthenticationToken(tuple.getT2().get(), tuple.getT1().getAuthorities());
+        JwtAuthenticationToken token = new JwtAuthenticationToken(jwt, user.getAuthorities());
         return token;
     }
 
