@@ -1,6 +1,7 @@
 package com.alpha.omega.user.service;
 
 import com.alpha.omega.security.SecurityUtils;
+import com.alpha.omega.security.UserContextRequest;
 import com.alpha.omega.user.exception.ContextNotFoundException;
 import com.alpha.omega.user.exception.UserNotFoundException;
 import com.alpha.omega.user.model.*;
@@ -19,8 +20,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.security.core.userdetails.ReactiveUserDetailsService;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.SynchronousSink;
@@ -148,7 +147,8 @@ public class RedisUserContextService implements UserContextService {
         return Mono.just(userContext)
                 .publishOn(scheduler)
                 .flatMap(uc -> Mono.zip(Mono.just(uc),
-                        Mono.just(Optional.ofNullable(contextRepository.findByContextId(uc.getContextId())).orElse(new ContextEntity())),
+                        Mono.fromCallable(() -> Optional.ofNullable(contextRepository.findByContextId(uc.getContextId())).orElse(new ContextEntity())).subscribeOn(Schedulers.boundedElastic()),
+                        //Mono.just(Optional.ofNullable(contextRepository.findByContextId(uc.getContextId())).orElse(new ContextEntity())),
                         (t1, t2) -> Tuples.of(t1, t2)))
                 .handle((tpl, sink) -> {
                     List<ServiceError> ServiceErrors = new ArrayList<>();

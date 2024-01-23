@@ -2,16 +2,12 @@ package com.alpha.omega.security;
 
 import com.alpha.omega.user.model.UserContextPermissions;
 import com.alpha.omega.user.repository.UserEntity;
-import com.alpha.omega.user.service.UserContextRequest;
-import com.alpha.omega.user.service.UserContextService;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.oauth2.jwt.Jwt;
-import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
 

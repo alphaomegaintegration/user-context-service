@@ -1,0 +1,19 @@
+# https://www.jetbrains.com/help/qodana/qodana-yaml.html#Example+of+different+configuration+options
+version: "1.0"
+linter: jetbrains/qodana-jvm:2023.3
+failThreshold: 0
+profile:
+  name: qodana.recommended
+include:
+  - name: SomeInspectionId
+exclude:
+  - name: Annotator
+  - name: AnotherInspectionId
+    paths:
+      - relative/path
+      - another/relative/path
+  - name: All
+    paths:
+      - asm-test/src/main/java/org
+      - benchmarks
+      - tools

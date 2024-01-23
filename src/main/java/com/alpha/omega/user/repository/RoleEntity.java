@@ -14,11 +14,12 @@ import static com.alpha.omega.user.service.ServiceUtils.ROLE_KEY_PREFIX;
 
 
 @RedisHash(ROLE_KEY_PREFIX)
-@Data
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @JsonIdentityInfo(
         generator = ObjectIdGenerators.PropertyGenerator.class,
         property = "id")
+
+@Data
 @NoArgsConstructor
 @AllArgsConstructor
 @ToString

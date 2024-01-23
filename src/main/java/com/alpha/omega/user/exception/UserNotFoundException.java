@@ -1,6 +1,6 @@
 package com.alpha.omega.user.exception;
 
-import com.alpha.omega.user.service.UserContextRequest;
+import com.alpha.omega.security.UserContextRequest;
 
 public class UserNotFoundException extends RuntimeException{
     UserContextRequest userContextRequest;

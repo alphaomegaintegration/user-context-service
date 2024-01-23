@@ -7,7 +7,7 @@ import com.alpha.omega.user.model.UserContextPermissions;
 import com.alpha.omega.user.server.UsercontextsApi;
 import com.alpha.omega.user.server.UsercontextsApiDelegate;
 import com.alpha.omega.user.service.ContextService;
-import com.alpha.omega.user.service.UserContextRequest;
+import com.alpha.omega.security.UserContextRequest;
 import com.alpha.omega.user.service.UserContextService;
 import io.micrometer.common.util.StringUtils;
 import lombok.AllArgsConstructor;
@@ -20,7 +20,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
-import reactor.core.scheduler.Schedulers;
 
 import java.util.Date;
 
@@ -210,9 +209,6 @@ public class UserContextDelegate implements UsercontextsApi, UsercontextsApiDele
                         .cacheControl(cacheControl)
                         .build())
                 .doOnNext(userContextPermissions -> logger.debug("Got getAllUserContexts page => {}", userContextPermissions))
-//                .map(cPage -> ResponseEntity.status(HttpStatus.OK)
-//                        .headers(headers -> headers.add(CORRELATION_ID, exchange.getAttribute(CORRELATION_ID)))
-//                        .body(cPage))
                 .map(val -> {
                     if (val.getPermissions() != null && !val.getPermissions().isEmpty()) {
                         return ResponseEntity.status(HttpStatus.OK)

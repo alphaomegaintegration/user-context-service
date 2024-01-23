@@ -1,7 +1,9 @@
 package com.alpha.omega.user.idprovider.keycloak;
 
+import com.alpha.omega.security.ClientRegistrationEntityRepository;
 import com.alpha.omega.security.SecurityUtils;
-import com.alpha.omega.user.service.UserContextRequest;
+import com.alpha.omega.security.UserContextPermissionsService;
+import com.alpha.omega.security.UserContextRequest;
 import com.alpha.omega.user.service.UserContextService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.AllArgsConstructor;
@@ -14,7 +16,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.*;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
@@ -24,7 +25,6 @@ import org.springframework.security.oauth2.server.resource.authentication.Bearer
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
@@ -32,12 +32,10 @@ import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
 
 import javax.annotation.PostConstruct;
-import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 
-import static com.alpha.omega.security.SecurityConstants.BEARER_STARTS_WITH_FUNCTION;
 import static com.alpha.omega.user.idprovider.keycloak.KeyCloakUtils.*;
 
 @Builder
@@ -51,7 +49,7 @@ public class KeyCloakAuthenticationManager extends AbstractUserDetailsReactiveAu
     private static final Logger logger = LoggerFactory.getLogger(KeyCloakAuthenticationManager.class);
 
     private String defaultContext;
-    private UserContextService userContextService;
+    private UserContextPermissionsService userContextService;
     private KeyCloakUserService keyCloakUserService;
     @Builder.Default
     private Scheduler scheduler = Schedulers.boundedElastic();
@@ -61,6 +59,7 @@ public class KeyCloakAuthenticationManager extends AbstractUserDetailsReactiveAu
     String issuerURL;
     String realmClientId;
     String realmClientSecret;
+    ClientRegistrationEntityRepository clientRegistrationEntityRepository;
 
     WebClient webClient;
     @Builder.Default
@@ -152,6 +151,31 @@ public class KeyCloakAuthenticationManager extends AbstractUserDetailsReactiveAu
                 return response.createError();
             }
         });
+    }
+
+
+    public Mono<Map<String, Object>> passwordGrantLoginMap(String username, String password, String contextId) {
+
+        logger.debug("using realmTokenUri => {}, realmClientId => {}", realmTokenUri, realmClientId);
+        //logger.info("using realmClientSecret => {}, password => {}", realmClientSecret, password);
+        return webClient.post().uri(realmTokenUri)
+                .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_FORM_URLENCODED_VALUE)
+                .header(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
+                .body(BodyInserters.fromFormData("grant_type", "password")
+                        .with("username", username)
+                        .with("password", password)
+                        .with("client_id", realmClientId)
+                        .with("client_secret", realmClientSecret)
+                        .with("scope", "openid"))
+                .exchangeToMono(response -> {
+                    logger.debug("response.statusCode() => {}", response.statusCode());
+                    if (response.statusCode().equals(HttpStatus.OK)) {
+                        return response.bodyToMono(MAP_OBJECT);
+                    } else {
+                        // Turn to error
+                        return response.createError();
+                    }
+                });
     }
 
 

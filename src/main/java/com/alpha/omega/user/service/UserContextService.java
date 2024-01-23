@@ -1,5 +1,7 @@
 package com.alpha.omega.user.service;
 
+import com.alpha.omega.security.UserContextPermissionsService;
+import com.alpha.omega.security.UserContextRequest;
 import com.alpha.omega.user.model.UserContext;
 import com.alpha.omega.user.model.UserContextBatchRequest;
 import com.alpha.omega.user.model.UserContextPage;
@@ -10,7 +12,7 @@ import reactor.core.publisher.Mono;
 
 import java.util.Date;
 
-public interface UserContextService {
+public interface UserContextService extends UserContextPermissionsService {
     Mono<UserContext> createUserContext(UserContext context);
     Mono<UserContext> updateUserContext(UserContext context);
     Flux<UserContext> findByContextId(String contextId);
@@ -32,5 +34,4 @@ public interface UserContextService {
     Mono<UserContextPage> getUserContextByContextId(PageRequest pageRequest, String contextId);
     Mono<UserContextPage> getUserContextByUserId(PageRequest pageRequest, String userId);
     Mono<UserContext> getUserContextByUserContextId(String userContextId);
-    Mono<UserContextPermissions> getUserContextByUserIdAndContextId(UserContextRequest userContextRequest);
 }

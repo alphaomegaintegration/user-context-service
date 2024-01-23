@@ -1,4 +1,4 @@
-package com.alpha.omega.user.service;
+package com.alpha.omega.security;
 
 import io.swagger.annotations.ApiModelProperty;
 import lombok.*;
