@@ -40,7 +40,6 @@ jobs:
         run: |
           ./mvnw -s settings.xml k8s:build
           aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 127418365645.dkr.ecr.us-east-1.amazonaws.com
-          docker tag user-context-service:latest 127418365645.dkr.ecr.us-east-1.amazonaws.com/user-context-service:latest
           docker push 127418365645.dkr.ecr.us-east-1.amazonaws.com/user-context-service:latest
           
 
