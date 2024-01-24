@@ -23,6 +23,12 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
           cache: maven
+      - name: Build and test
+        run: |
+          ./mvnw -s settings.xml clean install
+      - name: Put Code coverage tool here
+        run: |
+          echo "ADD CODE TOOL HERE"
       - uses: aws-actions/setup-sam@v1
       - uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -31,12 +37,11 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      - name: Build and publish
+      - name: Build and deploy to maven artifact repository
         run: |
           export CODEARTIFACT_AUTH_TOKEN=$(aws codeartifact get-authorization-token --region us-east-1 --domain alphaomega-repo --domain-owner 127418365645 --query authorizationToken --output text)
           ./mvnw -s settings.xml clean deploy -P alphaomega-repo-alpha-omega-repo
-          ./mvnw -s settings.xml k8s:build
-      - name: Push Docker Image
+      - name: Push Docker Image to ECR
         run: |
           ./mvnw -s settings.xml k8s:build
           aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 127418365645.dkr.ecr.us-east-1.amazonaws.com
