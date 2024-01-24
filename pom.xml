@@ -395,6 +395,14 @@
         </dependencies>
     </dependencyManagement>
 
+    <distributionManagement>
+        <repository>
+            <id>alphaomega-repo-alpha-omega-repo</id>
+            <name>alphaomega-repo-alpha-omega-repo</name>
+            <url>https://alphaomega-repo-127418365645.d.codeartifact.us-east-1.amazonaws.com/maven/alpha-omega-repo/</url>
+        </repository>
+    </distributionManagement>
+
     <build>
         <plugins>
 
