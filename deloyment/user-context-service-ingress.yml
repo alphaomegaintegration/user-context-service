@@ -1,0 +1,28 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    jkube.eclipse.org/git-commit: b3fb3e81d3cd73baef18c2a7406d2c1a3dfdd936
+    jkube.eclipse.org/git-url: https://github.com/alphaomegaintegration/user-context-service.git
+    jkube.eclipse.org/scm-url: https://github.com/spring-projects/spring-boot/user-context-service
+    jkube.eclipse.org/git-branch: main
+    jkube.eclipse.org/scm-tag: HEAD
+  labels:
+    app: user-context-service
+    provider: jkube
+    version: 0.0.1-SNAPSHOT
+    group: com.alpha.omega.user
+  name: user-context-service
+spec:
+  rules:
+  - host: foo.bar.com
+    http:
+      paths:
+      - backend:
+          service:
+            name: user-context-service
+            port:
+              number: 8080
+        path: /
+        pathType: Prefix

@@ -1,0 +1,26 @@
+{
+  "jobParameters": {
+    "inMemory": true
+  },
+  "correlationId": "100006",
+  "users": [
+    {
+      "first": "admin",
+      "last": "user",
+      "email": "admin.user@testing.com",
+      "contextId": "testing",
+      "role": "testing-all",
+      "externalId": "486c87d0-c155-bbe3-eae7-792031b4a1c9",
+      "password": "password"
+    },
+    {
+      "first": "none",
+      "last": "user",
+      "email": "none.user@testing.com",
+      "contextId": "testing",
+      "role": "testing-none",
+      "externalId": "386c87d0-c155-bbe3-eae7-792031b411c9",
+      "password": "password"
+    }
+  ]
+}

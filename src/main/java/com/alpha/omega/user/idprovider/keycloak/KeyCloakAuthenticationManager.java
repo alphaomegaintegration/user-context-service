@@ -4,11 +4,15 @@ import com.alpha.omega.security.ClientRegistrationEntityRepository;
 import com.alpha.omega.security.SecurityUtils;
 import com.alpha.omega.security.UserContextPermissionsService;
 import com.alpha.omega.security.UserContextRequest;
+import com.alpha.omega.user.exception.ContextNotFoundException;
 import com.alpha.omega.user.service.UserContextService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.keycloak.admin.client.Keycloak;
+import org.keycloak.representations.idm.ClientRepresentation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
@@ -39,6 +43,7 @@ import java.util.function.Function;
 import static com.alpha.omega.user.idprovider.keycloak.KeyCloakUtils.*;
 
 @Builder
+@Getter
 @NoArgsConstructor
 @AllArgsConstructor
 public class KeyCloakAuthenticationManager extends AbstractUserDetailsReactiveAuthenticationManager {
@@ -60,6 +65,7 @@ public class KeyCloakAuthenticationManager extends AbstractUserDetailsReactiveAu
     String realmClientId;
     String realmClientSecret;
     ClientRegistrationEntityRepository clientRegistrationEntityRepository;
+    Keycloak keycloak;
 
     WebClient webClient;
     @Builder.Default
@@ -143,7 +149,7 @@ public class KeyCloakAuthenticationManager extends AbstractUserDetailsReactiveAu
                         .with("client_secret", realmClientSecret)
                         .with("scope", "openid"))
                 .exchangeToMono(response -> {
-            logger.debug("response.statusCode() => {}", response.statusCode());
+            logger.debug("passwordGrantLoginMap response.statusCode() => {}", response.statusCode());
             if (response.statusCode().equals(HttpStatus.OK)) {
                 return response.bodyToMono(MAP_OBJECT);
             } else {
@@ -158,14 +164,19 @@ public class KeyCloakAuthenticationManager extends AbstractUserDetailsReactiveAu
 
         logger.debug("using realmTokenUri => {}, realmClientId => {}", realmTokenUri, realmClientId);
         //logger.info("using realmClientSecret => {}, password => {}", realmClientSecret, password);
+        ClientRepresentation  clientRepresentation = keycloak.realm(contextId).clients().findAll().stream()
+                .filter(cr -> cr.getClientId().equals(contextId))
+                 .findAny().orElseThrow(() -> new ContextNotFoundException(new StringBuilder(contextId).append(" not found").toString()));
+        String clientSecret = keycloak.realm(contextId).clients().get(clientRepresentation.getId()).getSecret().getValue();
+
         return webClient.post().uri(realmTokenUri)
                 .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_FORM_URLENCODED_VALUE)
                 .header(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
                 .body(BodyInserters.fromFormData("grant_type", "password")
                         .with("username", username)
                         .with("password", password)
-                        .with("client_id", realmClientId)
-                        .with("client_secret", realmClientSecret)
+                        .with("client_id", clientRepresentation.getClientId())
+                        .with("client_secret", clientSecret)
                         .with("scope", "openid"))
                 .exchangeToMono(response -> {
                     logger.debug("response.statusCode() => {}", response.statusCode());

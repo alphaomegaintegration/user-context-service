@@ -11,6 +11,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.NoArgsConstructor;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
@@ -35,7 +36,14 @@ public class PublicDelegate implements PublicApiDelegate {
     public Mono<ResponseEntity<ObjectNode>> getPublicLogin(String authorization, String contextId, ServerWebExchange exchange) {
 
         Tuple2<String,String> userPass = SecurityUtils.fromBasicAuthToTuple(authorization);
-        return keyCloakAuthenticationManager.passwordGrantLoginMap(userPass.getT1(), userPass.getT2())
+//        return keyCloakAuthenticationManager.passwordGrantLoginMap(userPass.getT1(), userPass.getT2())
+//                .map(map -> ServiceUtils.convertToJsonNode().apply(map, objectMapper))
+//                .cast(ObjectNode.class)
+//                .map(objectNode -> ResponseEntity.ok(objectNode));
+
+        String ctxId = StringUtils.isBlank(contextId) ? keyCloakAuthenticationManager.getDefaultContext() : contextId;
+        logger.info("Context id {}",ctxId);
+        return keyCloakAuthenticationManager.passwordGrantLoginMap(userPass.getT1(), userPass.getT2(), ctxId)
                 .map(map -> ServiceUtils.convertToJsonNode().apply(map, objectMapper))
                 .cast(ObjectNode.class)
                 .map(objectNode -> ResponseEntity.ok(objectNode));

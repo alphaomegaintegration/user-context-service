@@ -31,6 +31,7 @@
         <maven.surefire.plugin.version>3.0.0-M7</maven.surefire.plugin.version>
         <image.repo.name>127418365645.dkr.ecr.us-east-1.amazonaws.com</image.repo.name>
         <jkube.docker.push.registry>127418365645.dkr.ecr.us-east-1.amazonaws.com/rapid_containers</jkube.docker.push.registry>
+        <jkube.createExternalUrls>true</jkube.createExternalUrls>
     </properties>
     <dependencies>
         <dependency>

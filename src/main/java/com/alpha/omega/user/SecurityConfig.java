@@ -7,6 +7,7 @@ import com.alpha.omega.user.server.PublicApiController;
 import com.alpha.omega.user.service.RedisUserContextService;
 import com.alpha.omega.user.service.UserContextService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.keycloak.admin.client.Keycloak;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -123,7 +124,8 @@ public class SecurityConfig {
     @ConditionalOnMissingBean
     ReactiveAuthenticationManager keyCloakAuthenticationManager(UserContextService userContextService,
                                                                 KeyCloakUserService keyCloakUserService,
-                                                                Environment env){
+                                                                Environment env,
+                                                                Keycloak keycloak){
         return KeyCloakAuthenticationManager.builder()
                 .defaultContext(KeyCloakUtils.KEY_CLOAK_DEFAULT_CONTEXT)
                 .userContextService(userContextService)
@@ -134,6 +136,7 @@ public class SecurityConfig {
                 .realmBaseUrl(env.getProperty("idp.provider.keycloak.base-url"))
                 .realmJwkSetUri(env.getProperty("idp.provider.keycloak.jwkset-uri"))
                 .issuerURL(env.getProperty("idp.provider.keycloak.issuer-url"))
+                .keycloak(keycloak)
                 .build();
     }
 
