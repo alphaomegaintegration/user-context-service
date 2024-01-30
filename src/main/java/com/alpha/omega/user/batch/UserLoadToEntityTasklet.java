@@ -38,7 +38,10 @@ public class UserLoadToEntityTasklet implements Tasklet, StepExecutionListener, 
         JobExecution jobExecution = stepExecution.getJobExecution();
         ExecutionContext jobContext = jobExecution.getExecutionContext();
         List<UserLoad> userLoadList = (List<UserLoad>) jobContext.get(PROMOTE_USER_LOAD_CHUNK_KEY);
-        userLoadList.stream().forEach(this::accept);
+        if (userLoadList != null && !userLoadList.isEmpty()){
+            userLoadList.stream().forEach(this::accept);
+        }
+
         return RepeatStatus.FINISHED;
     }
 

@@ -69,30 +69,35 @@ public class ServiceAccountLoader implements ApplicationListener<ContextLoader.C
     @Override
     public void onApplicationEvent(ContextLoader.ContextLoadedEvent event) {
 
-        if (!hasRun.get() ) {
-            try {
-                logger.info("Got ContextLoader.ContextLoadedEvent event........");
-                Resource resource = resourceLoader.getResource(saBatchUsers);
-                Optional<String> fileAsStr = extractFileAsStringFromResource(resource);
-                Optional<BatchUserRequest> batchUserRequest = extractBatchUserRequestFromJson().apply(fileAsStr);
-                batchUserRequest.ifPresent(request -> {
-                    String jobStr = UUID.randomUUID().toString();
-                    request.setCorrelationId(jobStr);
-                    if (changePassword) {
-                        logger.info("reset with => {}", keyGenerator);
-                        List<UserLoad> userLoadList = request.getUsers().stream()
-                                .map(user -> {
-                                    user.setPassword(keyGenerator);
-                                    return user;
-                                })
-                                .collect(Collectors.toList());
-                        request.setUsers(userLoadList);
-                    }
-                    batchJobService.startJob(request);
-                });
-                hasRun.set(Boolean.TRUE);
-            } catch (Exception e) {
-                logger.warn("Could not load service accounts from " + saBatchUsers, e);
+        Context context = event.getContext();
+        if (loadServiceAccounts) {
+            if (!hasRun.get()) {
+                try {
+                    logger.info("Got ContextLoader.ContextLoadedEvent event........");
+                    Resource resource = resourceLoader.getResource(saBatchUsers);
+                    Optional<String> fileAsStr = extractFileAsStringFromResource(resource);
+                    Optional<BatchUserRequest> batchUserRequest = extractBatchUserRequestFromJson().apply(fileAsStr);
+                    batchUserRequest.ifPresent(request -> {
+                        String jobStr = UUID.randomUUID().toString();
+                        request.setCorrelationId(jobStr);
+                        if (changePassword) {
+                            logger.info("reset with => {}", keyGenerator);
+                            List<UserLoad> userLoadList = request.getUsers().stream()
+                                    .filter(user -> user.getContextId().equals(context.getContextId()))
+                                    .map(user -> {
+                                        user.setPassword(keyGenerator);
+                                        return user;
+                                    })
+                                    .collect(Collectors.toList());
+                            request.setUsers(userLoadList);
+                        }
+                        batchJobService.startJob(request);
+                    });
+                    hasRun.set(Boolean.TRUE);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    logger.warn("Could not load service accounts from " + saBatchUsers, e);
+                }
             }
         }
 

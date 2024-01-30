@@ -294,7 +294,7 @@ public class KeyCloakUserService implements ItemWriter<UserEntity>, StepExecutio
     final static BiConsumer<Throwable, Object> withErrorConsumer(){
         return (Throwable throwable, Object obj) -> {
             if (logger.isDebugEnabled()){
-                logger.error("Got some error ",throwable);
+                //logger.error("Got some error ",throwable);
             }
 
             if (throwable instanceof WebClientResponseException){
@@ -323,7 +323,10 @@ public class KeyCloakUserService implements ItemWriter<UserEntity>, StepExecutio
         JobExecution jobExecution = stepExecution.getJobExecution();
         ExecutionContext jobContext = jobExecution.getExecutionContext();
         List<UserLoad> userLoadList = (List<UserLoad>) jobContext.get(PROMOTE_USER_LOAD_CHUNK_KEY);
-        writeUserLoadsToIdentityProvider(userLoadList);
+        if (userLoadList != null && !userLoadList.isEmpty()){
+            writeUserLoadsToIdentityProvider(userLoadList);
+        }
+
 
         /*
 

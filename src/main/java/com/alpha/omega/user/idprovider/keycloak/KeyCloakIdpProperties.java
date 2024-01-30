@@ -8,5 +8,5 @@ import org.springframework.context.annotation.Configuration;
 public record KeyCloakIdpProperties(String clientId, String clientSecret, String baseUrl, String tokenUri,
                                     String userUri, String realm, String adminTokenUri, String adminUsername,
                                     String adminPassword, String adminClientId, String adminClientSecret,
-                                    String jwksetUri, String issuerUrl, String adminRealmUri) {
+                                    String jwksetUri, String issuerUrl, String adminRealmUri, Integer accessCodeLifespan) {
 }

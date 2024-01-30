@@ -192,7 +192,7 @@ public class ServiceUtils {
             String fileStr = IOUtils.toString(resource.getInputStream(), Charset.defaultCharset());
             value = Optional.of(fileStr);
         } catch (Exception e) {
-            logger.warn("Could not extractFileFromResource {}",resource,e);
+            logger.warn("Could not extractFileFromResource {} because {}",resource,e.getMessage());
 
         }
         return value;

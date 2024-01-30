@@ -26,10 +26,14 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplicat
 import org.springframework.boot.autoconfigure.web.WebProperties;
 import org.springframework.boot.web.reactive.error.DefaultErrorAttributes;
 import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.event.ApplicationEventMulticaster;
+import org.springframework.context.event.SimpleApplicationEventMulticaster;
 import org.springframework.core.annotation.Order;
+import org.springframework.core.task.SimpleAsyncTaskExecutor;
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
 import org.springframework.data.redis.repository.configuration.EnableRedisRepositories;
@@ -67,6 +71,15 @@ public class AppConfig {
     ReactiveRedisTemplate<String, ContextEntity> reactiveContextRedisTemplate;
     static String TEST_NAMESPACE = "test:namespace";
     static String TEST_KEY = "test:key";
+
+    @Bean(name = "applicationEventMulticaster")
+    public ApplicationEventMulticaster simpleApplicationEventMulticaster() {
+        SimpleApplicationEventMulticaster eventMulticaster =
+                new SimpleApplicationEventMulticaster();
+
+        eventMulticaster.setTaskExecutor(new SimpleAsyncTaskExecutor());
+        return eventMulticaster;
+    }
 
     @Bean
     @Order(-2)
@@ -113,13 +126,15 @@ public class AppConfig {
     @Bean
     ContextService contextService(ContextRepository contextRepository, ReactiveRedisTemplate<String, ContextEntity> reactiveContextRedisTemplate,
                                   RoleRepository roleRepository, ObjectMapper objectMapper,
-                                  PagingAndSortingContextRepository pagingAndSortingContextRepository) {
+                                  PagingAndSortingContextRepository pagingAndSortingContextRepository,
+                                  ApplicationEventPublisher eventPublisher) {
         return RedisContextService.builder()
                 .contextRepository(contextRepository)
                 .pagingAndSortingContextRepository(pagingAndSortingContextRepository)
                 .contextOps(reactiveContextRedisTemplate)
                 .roleRepository(roleRepository)
                 .objectMapper(objectMapper)
+                .eventPublisher(eventPublisher)
                 .build();
     }
 

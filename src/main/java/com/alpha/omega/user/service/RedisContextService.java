@@ -14,6 +14,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeanUtils;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.io.DefaultResourceLoader;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.data.crossstore.ChangeSetPersister;
@@ -62,6 +63,7 @@ public class RedisContextService implements ContextService {
     Scheduler scheduler = Schedulers.boundedElastic();
     @Builder.Default
     ContextValidator contextValidator = new ContextValidator();
+    ApplicationEventPublisher eventPublisher;
 
 
 
@@ -203,11 +205,8 @@ public class RedisContextService implements ContextService {
                     ctx.setRoles(roles);
                     return contextRepository.save(ctx);
                 })
-                .map(convertContextEntityToContext);
-//                .flatMap(ctx -> Mono.zip(contextOps.opsForValue()
-//                        .set(calculateContextKey(ctx.getContextId()), ctx),
-//                        Mono.just(ctx)))
-//                .map(tuple -> ServiceUtils.convertContextEntityToContext.apply(tuple.getT2()));
+                .map(convertContextEntityToContext)
+                .doOnNext(ctx -> eventPublisher.publishEvent(new ContextCreated(this, ctx)));
 
     }
 

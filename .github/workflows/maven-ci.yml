@@ -1,4 +1,4 @@
-name: Use this to maven cd into EKS
+name: Maven steps to CodeArtifact and ECR
 on:
   workflow_dispatch: {}
 #on: push
@@ -28,7 +28,7 @@ jobs:
           ./mvnw -s settings.xml clean install
       - name: Put Code coverage tool here
         run: |
-          echo "ADD CODE TOOL HERE"
+          echo "ADD CODE COVERAGE TOOL HERE"
       - uses: aws-actions/setup-sam@v1
       - uses: aws-actions/configure-aws-credentials@v4
         with:
