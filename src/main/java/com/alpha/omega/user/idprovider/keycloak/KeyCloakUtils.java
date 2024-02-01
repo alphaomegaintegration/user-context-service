@@ -39,7 +39,7 @@ public class KeyCloakUtils {
     };
     final static ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     final static ResourceLoader resourceLoader = new DefaultResourceLoader();
-    public static final String DEFAULT_CLIENT_TEMPLATE = "classpath:client/keycloak-client-template.json";
+    public static final String DEFAULT_CLIENT_TEMPLATE = "classpath:client/keycloak-client-template2.json";
 
     public final static Function<Map<String, Object>, Optional<Jwt>> convertResultMapToJwt(JwtDecoder jwtDecoder) {
         return map -> {

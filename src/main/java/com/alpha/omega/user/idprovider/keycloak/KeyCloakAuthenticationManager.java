@@ -5,6 +5,7 @@ import com.alpha.omega.security.SecurityUtils;
 import com.alpha.omega.security.UserContextPermissionsService;
 import com.alpha.omega.security.UserContextRequest;
 import com.alpha.omega.user.exception.ContextNotFoundException;
+import com.alpha.omega.user.service.ContextIdProviders;
 import com.alpha.omega.user.service.UserContextService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.AllArgsConstructor;
@@ -12,6 +13,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.keycloak.admin.client.Keycloak;
+import org.keycloak.admin.client.resource.RealmResource;
 import org.keycloak.representations.idm.ClientRepresentation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,9 +38,11 @@ import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
 
 import javax.annotation.PostConstruct;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static com.alpha.omega.user.idprovider.keycloak.KeyCloakUtils.*;
 
@@ -46,7 +50,7 @@ import static com.alpha.omega.user.idprovider.keycloak.KeyCloakUtils.*;
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
-public class KeyCloakAuthenticationManager extends AbstractUserDetailsReactiveAuthenticationManager {
+public class KeyCloakAuthenticationManager extends AbstractUserDetailsReactiveAuthenticationManager implements ContextIdProviders {
 
     /*
     AbstractUserDetailsReactiveAuthenticationManager
@@ -271,5 +275,20 @@ public class KeyCloakAuthenticationManager extends AbstractUserDetailsReactiveAu
             throw new CredentialsExpiredException(this.messages.getMessage(
                     "AbstractUserDetailsAuthenticationProvider.credentialsExpired", "User credentials have expired"));
         }
+    }
+
+    @Override
+    public Mono<Map<String, Object>> getContextIdProviders(String contextId) {
+        RealmResource realm =   keycloak.realm(contextId);
+        Map<String,Object> aMap = realm.clients().findAll().stream()
+                .collect(Collectors.toMap(cr -> cr.getClientId(), cr -> generateMapFromClient(cr)));
+        return Mono.just(aMap);
+    }
+
+    private Map<String, Object> generateMapFromClient(ClientRepresentation cr) {
+        Map<String, Object> aMap = new HashMap<>();
+        Map converted = objectMapper.convertValue(cr, Map.class);
+        aMap.putAll(converted);
+        return aMap;
     }
 }

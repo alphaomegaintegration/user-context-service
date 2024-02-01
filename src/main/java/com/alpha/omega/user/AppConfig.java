@@ -8,6 +8,7 @@ import com.alpha.omega.user.exception.ContextNotFoundException;
 import com.alpha.omega.user.exception.ReactiveExceptionHandler;
 import com.alpha.omega.user.exception.ServiceException;
 import com.alpha.omega.user.exception.UserNotFoundException;
+import com.alpha.omega.user.idprovider.keycloak.KeyCloakAuthenticationManager;
 import com.alpha.omega.user.repository.*;
 import com.alpha.omega.user.server.ContextsApiController;
 //import com.alpha.omega.user.server.UsersApiController;
@@ -140,8 +141,11 @@ public class AppConfig {
 
 
     @Bean
-    ContextsDelegate contextsDelegate(ContextService contextService) {
-        return new ContextsDelegate(contextService);
+    ContextsDelegate contextsDelegate(ContextService contextService, KeyCloakAuthenticationManager keyCloakAuthenticationManager) {
+        return ContextsDelegate.builder()
+                .contextService(contextService)
+                .keyCloakAuthenticationManager(keyCloakAuthenticationManager)
+                .build();
     }
 
     @Bean
