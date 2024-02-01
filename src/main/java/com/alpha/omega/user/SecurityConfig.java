@@ -1,6 +1,7 @@
 package com.alpha.omega.user;
 
 import com.alpha.omega.security.ClientRegistrationConfig;
+import com.alpha.omega.security.ReactiveSecurityWebFilterFactory;
 import com.alpha.omega.user.delegate.PublicDelegate;
 import com.alpha.omega.user.idprovider.keycloak.*;
 import com.alpha.omega.user.server.PublicApiController;
@@ -19,10 +20,13 @@ import org.springframework.core.env.Environment;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.codec.ServerCodecConfigurer;
 import org.springframework.security.authentication.ReactiveAuthenticationManager;
 import org.springframework.security.config.annotation.method.configuration.EnableReactiveMethodSecurity;
+import org.springframework.security.config.web.server.SecurityWebFiltersOrder;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.core.userdetails.*;
+import org.springframework.security.oauth2.client.oidc.authentication.OidcIdTokenDecoderFactory;
 import org.springframework.security.oauth2.client.registration.ReactiveClientRegistrationRepository;
 import org.springframework.security.oauth2.client.web.server.DefaultServerOAuth2AuthorizationRequestResolver;
 import org.springframework.security.oauth2.client.web.server.ServerOAuth2AuthorizationRequestResolver;
@@ -36,6 +40,7 @@ import org.springframework.security.web.server.util.matcher.*;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
+import org.springframework.web.server.WebFilter;
 import reactor.core.publisher.Mono;
 
 import java.util.ArrayList;
@@ -113,6 +118,11 @@ public class SecurityConfig {
      */
 
     @Bean
+    KeyCloakJwtDecoderFactory keyCloakJwtDecoderFactory(){
+        return new KeyCloakJwtDecoderFactory();
+    }
+
+    @Bean
     ReactiveUserDetailsService userDetailsService(UserContextService userContextService){
         return RedisUserContextService.RedisReactiveUserDetailsService.builder()
                 .userContextService(userContextService)
@@ -125,7 +135,8 @@ public class SecurityConfig {
     ReactiveAuthenticationManager keyCloakAuthenticationManager(UserContextService userContextService,
                                                                 KeyCloakUserService keyCloakUserService,
                                                                 Environment env,
-                                                                Keycloak keycloak){
+                                                                Keycloak keycloak,
+                                                                KeyCloakJwtDecoderFactory keyCloakJwtDecoderFactory){
         return KeyCloakAuthenticationManager.builder()
                 .defaultContext(KeyCloakUtils.KEY_CLOAK_DEFAULT_CONTEXT)
                 .userContextService(userContextService)
@@ -137,6 +148,7 @@ public class SecurityConfig {
                 .realmJwkSetUri(env.getProperty("idp.provider.keycloak.jwkset-uri"))
                 .issuerURL(env.getProperty("idp.provider.keycloak.issuer-url"))
                 .keycloak(keycloak)
+                .jwtDecoderFactory(keyCloakJwtDecoderFactory)
                 .build();
     }
 
@@ -154,13 +166,30 @@ public class SecurityConfig {
         return new PublicApiController(publicDelegate);
     }
 
+    @Bean
+    ReactiveSecurityWebFilterFactory reactiveSecurityWebFilterFactory(){
+        return new ReactiveSecurityWebFilterFactory();
+    }
+
+    @Bean
+    WebFilter basicWebFilter(ReactiveSecurityWebFilterFactory reactiveSecurityWebFilterFactory,
+                             @Qualifier("idProviderAuthenticationManager")ReactiveAuthenticationManager authenticationManager){
+        return reactiveSecurityWebFilterFactory.createFilter(authenticationManager);
+    }
+
     @Order(Ordered.HIGHEST_PRECEDENCE)
     @Bean
     SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http,
+                                                     ReactiveSecurityWebFilterFactory reactiveSecurityWebFilterFactory,
+                                                     WebFilter basicWebFilter,
                                                      @Qualifier("idProviderAuthenticationManager")ReactiveAuthenticationManager authenticationManager,
                                                      KeyCloakIdpProperties keyCloakIdpProperties) {
+
+        //WebFilter webFilter = reactiveSecurityWebFilterFactory.createFilter(authenticationManager);
         // @formatter:off
-        http.authorizeExchange((authorize) -> authorize ///usercontexts/user/{userId}/context/{contextId}
+        http
+                .addFilterBefore(basicWebFilter, SecurityWebFiltersOrder.HTTP_BASIC)
+                .authorizeExchange((authorize) -> authorize ///usercontexts/user/{userId}/context/{contextId}
                         //.pathMatchers("/**").permitAll()
                         //.pathMatchers("").access()
 
@@ -175,18 +204,21 @@ public class SecurityConfig {
                         .pathMatchers(HttpMethod.GET,"/actuator/**").hasAuthority("VIEW_CONFIGURATIONS")
                         .anyExchange().authenticated()
 
-                )
-                .httpBasic(httpBasicSpec -> httpBasicSpec.authenticationManager(authenticationManager));
+                );
+
+                //.httpBasic(httpBasicSpec -> httpBasicSpec.disable());
+                //.httpBasic(httpBasicSpec -> httpBasicSpec.authenticationManager(authenticationManager));
               //  .formLogin((form) -> form
               //          .loginPage("/login")
               //  );
-        //WebFilter webFilter = createHttpBasicFilter(authenticationManager);
-        //http.addFilterAt(webFilter, SecurityWebFiltersOrder.HTTP_BASIC);
+
+        //http.addFilterAt(webFilter, SecurityWebFiltersOrder.AUTHENTICATION);
         //http.oauth2Client(oAuth2ClientSpec -> oAuth2ClientSpec.authorizationRequestResolver())
         http.oauth2ResourceServer(oAuth2ResourceServerSpec -> oAuth2ResourceServerSpec.authenticationManagerResolver(new KeyCloakReactiveAuthenticationManagerResolver(authenticationManager)));
         //http.oauth2ResourceServer(oAuth2ResourceServerSpec -> oAuth2ResourceServerSpec.bearerTokenConverter());
         //http.authenticationManager(authenticationManager);
         http.csrf(csrfSpec -> csrfSpec.disable());
+
         return http.build();
     }
 

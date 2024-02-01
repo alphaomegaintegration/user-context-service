@@ -1,0 +1,21 @@
+{
+  "id": "testing",
+  "contextId": "testing",
+  "contextName": "testing",
+  "description": "The context for testing",
+  "enabled": true,
+  "permissions": ["NONE","ALL"],
+  "roles": [
+
+    {
+      "roleId": "testing-none",
+      "roleName": "testing-none",
+      "permissions": ["NONE"]
+    },
+    {
+      "roleId": "testing-all",
+      "roleName": "testing-all",
+      "permissions": ["ALL"]
+    }
+  ]
+}

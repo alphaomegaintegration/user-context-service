@@ -12,6 +12,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.checkerframework.checker.units.qual.C;
 import org.keycloak.admin.client.Keycloak;
 import org.keycloak.admin.client.resource.RealmResource;
 import org.keycloak.representations.idm.ClientRepresentation;
@@ -23,14 +24,15 @@ import org.springframework.http.MediaType;
 import org.springframework.security.authentication.*;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.security.oauth2.jwt.JwtDecoder;
-import org.springframework.security.oauth2.jwt.JwtValidators;
-import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+import org.springframework.security.oauth2.client.registration.ClientRegistration;
+import org.springframework.security.oauth2.core.AuthorizationGrantType;
+import org.springframework.security.oauth2.jwt.*;
 import org.springframework.security.oauth2.server.resource.authentication.BearerTokenAuthenticationToken;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.util.UriBuilder;
+import org.springframework.web.util.UriComponentsBuilder;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
@@ -45,6 +47,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static com.alpha.omega.user.idprovider.keycloak.KeyCloakUtils.*;
+import static com.alpha.omega.user.utils.Constants.CONTEXT_ID;
 
 @Builder
 @Getter
@@ -56,6 +59,9 @@ public class KeyCloakAuthenticationManager extends AbstractUserDetailsReactiveAu
     AbstractUserDetailsReactiveAuthenticationManager
      */
     private static final Logger logger = LoggerFactory.getLogger(KeyCloakAuthenticationManager.class);
+    public static final String TOKEN_CLIENT_URI = "/realms/{realm}/protocol/openid-connect/token";
+    public static final String CERT_CLIENT_URI = "/realms/{realm}/protocol/openid-connect/certs";
+    public static final String ISSUER_CLIENT_URI = "/realms/{realm}";
 
     private String defaultContext;
     private UserContextPermissionsService userContextService;
@@ -75,6 +81,7 @@ public class KeyCloakAuthenticationManager extends AbstractUserDetailsReactiveAu
     @Builder.Default
     ObjectMapper objectMapper = new ObjectMapper();
     JwtDecoder jwtDecoder;
+    JwtDecoderFactory<ClientRegistration> jwtDecoderFactory;
 
     @PostConstruct
     public void init() {
@@ -112,14 +119,25 @@ public class KeyCloakAuthenticationManager extends AbstractUserDetailsReactiveAu
                 .map(SecurityUtils.convertUserContextPermissionsToUserDetails());
     }
 
+    protected Mono<UserDetails> retrieveUser(String username,String contextId) {
+        final UserContextRequest userContextRequest = UserContextRequest.builder().contextId(contextId).userId(username).build();
+
+        return Mono.just(userContextRequest)
+                .publishOn(this.scheduler)
+                .flatMap(request -> userContextService.getUserContextByUserIdAndContextId(request))
+                .map(SecurityUtils.convertUserContextPermissionsToUserDetails());
+    }
+
 
     protected Mono<UserDetails> retrieveUser(Authentication authentication) {
+        String context = determineContext(authentication);
         if (authentication instanceof BearerTokenAuthenticationToken) {
             BearerTokenAuthenticationToken bearerToken = (BearerTokenAuthenticationToken) authentication;
+
             Optional<Jwt> jwt = Optional.of(jwtDecoder.decode(bearerToken.getToken()));
             String username = jwt.get().getClaimAsString("email");
             UserContextRequest userContextRequest = UserContextRequest.builder()
-                    .contextId(defaultContext)
+                    .contextId(context)
                     .userId(username)
                     .build();
             return Mono.just(userContextRequest)
@@ -128,14 +146,38 @@ public class KeyCloakAuthenticationManager extends AbstractUserDetailsReactiveAu
                     .map(SecurityUtils.convertUserContextPermissionsToUserDetails(jwt));
 
         } else {
-            return this.retrieveUser(authentication.getName());
+            return this.retrieveUser(authentication.getName(),context);
         }
 
+    }
+
+    String determineContext(Authentication authentication) {
+
+        return authentication.getDetails() != null ? ((Map<String,String>)authentication.getDetails()).getOrDefault(CONTEXT_ID,defaultContext)
+                : defaultContext;
     }
 
     public Mono<Optional<Jwt>> passwordGrantLoginJwt(String username, String password) {
 
         return passwordGrantLoginMap(username, password).map(convertResultMapToJwt(jwtDecoder));
+    }
+
+
+    public Mono<Optional<Jwt>> passwordGrantLoginJwt(String username, String password,String contextId) {
+        ClientRegistration.Builder builder = ClientRegistration.withRegistrationId(contextId);
+        String jwkSetPath = UriComponentsBuilder.fromHttpUrl(realmBaseUrl).path(CERT_CLIENT_URI).build(Map.of("realm",contextId)).toString();
+        String tokenPath = UriComponentsBuilder.fromHttpUrl(realmBaseUrl).path(TOKEN_CLIENT_URI).build(Map.of("realm",contextId)).toString();
+        String issuerPath = UriComponentsBuilder.fromHttpUrl(realmBaseUrl).path(ISSUER_CLIENT_URI).build(Map.of("realm",contextId)).toString();
+        logger.info("Calculated jwkSetPath =>  {} tokenPath => {} issuerUrl => {} for JwtDecoder ",
+                new Object[]{jwkSetPath, tokenPath, issuerPath});
+        ClientRegistration clientRegistration = builder.clientId(contextId)
+                .jwkSetUri(jwkSetPath)
+                .tokenUri(tokenPath)
+                .issuerUri(issuerPath)
+                .authorizationGrantType(AuthorizationGrantType.CLIENT_CREDENTIALS)
+                .build();
+        JwtDecoder decoder = jwtDecoderFactory.createDecoder(clientRegistration);
+        return passwordGrantLoginMap(username, password,contextId).map(convertResultMapToJwt(decoder));
     }
 
 
@@ -164,8 +206,10 @@ public class KeyCloakAuthenticationManager extends AbstractUserDetailsReactiveAu
     }
 
 
+
     public Mono<Map<String, Object>> passwordGrantLoginMap(String username, String password, String contextId) {
 
+        logger.debug("passwordGrantLoginMap(String username, String password, String contextId=[{}]) ",contextId);
         logger.debug("using realmTokenUri => {}, realmClientId => {}", realmTokenUri, realmClientId);
         //logger.info("using realmClientSecret => {}, password => {}", realmClientSecret, password);
         ClientRepresentation  clientRepresentation = keycloak.realm(contextId).clients().findAll().stream()
@@ -173,7 +217,10 @@ public class KeyCloakAuthenticationManager extends AbstractUserDetailsReactiveAu
                  .findAny().orElseThrow(() -> new ContextNotFoundException(new StringBuilder(contextId).append(" not found").toString()));
         String clientSecret = keycloak.realm(contextId).clients().get(clientRepresentation.getId()).getSecret().getValue();
 
-        return webClient.post().uri(realmTokenUri)
+        return webClient.post()
+                //.uri(realmTokenUri)
+                .uri(uriBuilder -> uriBuilder.path(TOKEN_CLIENT_URI)
+                        .build(Map.of("realm",contextId)))
                 .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_FORM_URLENCODED_VALUE)
                 .header(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
                 .body(BodyInserters.fromFormData("grant_type", "password")
@@ -182,6 +229,7 @@ public class KeyCloakAuthenticationManager extends AbstractUserDetailsReactiveAu
                         .with("client_id", clientRepresentation.getClientId())
                         .with("client_secret", clientSecret)
                         .with("scope", "openid"))
+                .httpRequest(request -> logger.info("request.getURI().toString() => {}",request.getURI().toString()))
                 .exchangeToMono(response -> {
                     logger.debug("response.statusCode() => {}", response.statusCode());
                     if (response.statusCode().equals(HttpStatus.OK)) {
@@ -203,6 +251,7 @@ public class KeyCloakAuthenticationManager extends AbstractUserDetailsReactiveAu
     Function<Tuple2<Authentication, UserDetails>, Mono<Tuple2<UserDetails, Optional<Jwt>>>> basicAuthOrJwtAccess() {
         return tuple -> {
             Authentication authentication = tuple.getT1();
+            String context = determineContext(authentication);
             UserDetails userDetails = tuple.getT2();
             final String username = authentication.getName();
             logger.debug("Got username => {}", username);
@@ -210,7 +259,7 @@ public class KeyCloakAuthenticationManager extends AbstractUserDetailsReactiveAu
                 return validLoginJwt(username).map(jwt -> Tuples.of(tuple.getT2(), jwt));
             } else {
                 final String presentedPassword = (String) authentication.getCredentials();
-                return passwordGrantLoginJwt(username, presentedPassword).map(jwt -> Tuples.of(tuple.getT2(), jwt));
+                return passwordGrantLoginJwt(username, presentedPassword,context).map(jwt -> Tuples.of(tuple.getT2(), jwt));
             }
         };
     }

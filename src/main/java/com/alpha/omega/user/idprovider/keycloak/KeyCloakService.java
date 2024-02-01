@@ -4,6 +4,7 @@ import com.alpha.omega.security.ClientNotFoundException;
 import com.alpha.omega.security.ClientRegistrationEntity;
 import com.alpha.omega.user.model.Context;
 import com.alpha.omega.user.service.ContextCreated;
+import com.alpha.omega.user.service.RandomPasswordGenerator;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.ws.rs.core.Response;
 import lombok.AllArgsConstructor;
@@ -469,7 +470,7 @@ RealmRepresentation realm = keycloak.realm("master").toRepresentation();
                         foundClientRepresentation.setImplicitFlowEnabled(Boolean.TRUE);
                         foundClientRepresentation.setServiceAccountsEnabled(Boolean.FALSE);
                         foundClientRepresentation.setPublicClient(Boolean.FALSE);
-                        foundClientRepresentation.setSecret(createAKey());
+                        foundClientRepresentation.setSecret(RandomPasswordGenerator.generateCommonsLang3Password());
 
                         ClientRepresentation cr = new ClientRepresentation();
                         cr.setAuthorizationServicesEnabled(Boolean.TRUE);
@@ -483,14 +484,15 @@ RealmRepresentation realm = keycloak.realm("master").toRepresentation();
                                 .filter(user -> user.getUsername().equals(serviceAccountName))
                                 .findAny();
 
-                        ClientResource clientResource = realm.clients().get(foundClientRepresentation.getId());
+                        //ClientResource clientResource = realm.clients().get(foundClientRepresentation.getId());
+                        //clientResource.generateNewSecret();
                         //clientResource.update(cr);
 
 
                         //clientResource.
                         //String val = clientResource.generateNewSecret().getValue()
                         //realm.clients().get(clientRepresentation.getId()).update(clientRepresentation);
-                        clientResource.generateNewSecret();
+
                         keyCloakService.updateClient(context.getContextId(), foundClientRepresentation).subscribe();
 
                     } else {

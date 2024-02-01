@@ -1,0 +1,26 @@
+{
+  "jobParameters": {
+    "inMemory": true
+  },
+  "correlationId": "100009",
+  "users": [
+    {
+      "first": "admin",
+      "last": "user",
+      "email": "admin.user@health.com",
+      "contextId": "health",
+      "role": "health-admin",
+      "externalId": "486c87d0-c155-bbe3-eae7-792031c4a1c9",
+      "password": "password"
+    },
+    {
+      "first": "none",
+      "last": "user",
+      "email": "none.user@health.com",
+      "contextId": "health",
+      "role": "health-none",
+      "externalId": "286c87d0-c155-bbe3-eae7-792031b411c9",
+      "password": "password"
+    }
+  ]
+}

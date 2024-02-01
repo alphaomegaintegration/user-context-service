@@ -1,0 +1,68 @@
+{
+  "id": "unhrc-bims",
+  "contextId": "unhrc-bims",
+  "contextName": "unhrc-bims",
+  "description": "The context for unhrc-bims",
+  "enabled": true,
+  "permissions": [
+    "SCHEDULE_APPLICANTS",
+    "ASSIGN_ADMIN_ROLE",
+    "ASSIGN_ADJUDICATOR_ROLE",
+    "LIST_APPLICANTS",
+    "BATCH_SCHEDULE_APPLICANTS",
+    "VIEW_APPLICANT_DATA",
+    "VIEW_MY_SCHEDULE",
+    "VIEW_APPLICANT_SCHEDULE",
+    "LIST_APPLICANTS_SCHEDULE",
+    "LIST_COUNTRIES",
+    "LIST_OFFICES",
+    "VIEW_COUNTRY_DATA",
+    "VIEW_OFFICE_DATA",
+    "NONE"
+  ],
+  "roles": [
+    {
+      "roleId": "admin-unhrc-bims",
+      "roleName": "admin-unhrc-bims",
+      "permissions": [
+        "SCHEDULE_APPLICANTS",
+        "ASSIGN_ADMIN_ROLE",
+        "ASSIGN_ADJUDICATOR_ROLE",
+        "LIST_APPLICANTS",
+        "BATCH_SCHEDULE_APPLICANTS",
+        "VIEW_APPLICANT_DATA",
+        "VIEW_MY_SCHEDULE",
+        "VIEW_APPLICANT_SCHEDULE",
+        "LIST_APPLICANTS_SCHEDULE",
+        "LIST_COUNTRIES",
+        "LIST_OFFICES",
+        "VIEW_COUNTRY_DATA",
+        "VIEW_OFFICE_DATA"
+      ]
+    },
+    {
+      "roleId": "adjudicator-unhrc-bims",
+      "roleName": "adjudicator-unhrc-bims",
+      "permissions": [
+        "VIEW_MY_SCHEDULE"
+      ]
+    },
+    {
+      "roleId": "employee-unhrc-bims",
+      "roleName": "employee-unhrc-bims",
+      "permissions": [
+        "SCHEDULE_APPLICANTS",
+        "LIST_APPLICANTS",
+        "VIEW_APPLICANT_DATA",
+        "VIEW_APPLICANT_SCHEDULE"
+      ]
+    },
+    {
+      "roleId": "noop-unhrc-bims",
+      "roleName": "noop-unhrc-bims",
+      "permissions": [
+        "NONE"
+      ]
+    }
+  ]
+}
