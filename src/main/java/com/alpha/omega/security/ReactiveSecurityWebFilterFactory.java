@@ -3,6 +3,8 @@ package com.alpha.omega.security;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.ReactiveAuthenticationManager;
+import org.springframework.security.config.web.server.SecurityWebFiltersOrder;
+import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.server.DelegatingServerAuthenticationEntryPoint;
 import org.springframework.security.web.server.authentication.*;
@@ -18,7 +20,7 @@ import java.util.List;
 public class ReactiveSecurityWebFilterFactory {
 
 
-    AuthenticationWebFilter createFilter(ReactiveAuthenticationManager authenticationManager){
+    public AuthenticationWebFilter createFilter(ReactiveAuthenticationManager authenticationManager){
         final ServerWebExchangeMatcher xhrMatcher = (exchange) -> Mono.just(exchange.getRequest().getHeaders())
                 .filter((h) -> h.getOrEmpty("X-Requested-With").contains("XMLHttpRequest"))
                 .flatMap((h) -> ServerWebExchangeMatcher.MatchResult.match())
@@ -37,12 +39,13 @@ public class ReactiveSecurityWebFilterFactory {
         defaultEntryPoint.setDefaultEntryPoint(new HttpBasicServerAuthenticationEntryPoint());
         //ServerHttpSecurity.this.defaultEntryPoints.add(new DelegatingServerAuthenticationEntryPoint.DelegateEntry(preferredMatcher, defaultEntryPoint));
         AuthenticationWebFilter authenticationFilter = new AuthenticationWebFilter(authenticationManager);
-        authenticationFilter.setRequiresAuthenticationMatcher(preferredMatcher);
-        authenticationFilter.setAuthenticationFailureHandler(new ServerAuthenticationEntryPointFailureHandler(defaultEntryPoint));
-        authenticationFilter.setAuthenticationConverter(new ServerHttpBasicAuthenticationConverter());
-        authenticationFilter.setSecurityContextRepository(NoOpServerSecurityContextRepository.getInstance());
+        //authenticationFilter.setRequiresAuthenticationMatcher(preferredMatcher);
+        //authenticationFilter.setAuthenticationFailureHandler(new ServerAuthenticationEntryPointFailureHandler(defaultEntryPoint));
+        //authenticationFilter.setAuthenticationConverter(new ServerHttpBasicAuthenticationConverter());
+        authenticationFilter.setAuthenticationConverter(BasicServerWebExchangeConvertor.builder().build());
+        //authenticationFilter.setSecurityContextRepository(NoOpServerSecurityContextRepository.getInstance());
         return authenticationFilter;
-        //http.addFilterAt(authenticationFilter, SecurityWebFiltersOrder.HTTP_BASIC);
+
     }
 
     public static class NoOpReactiveAuthenticationManager implements ReactiveAuthenticationManager{

@@ -1,11 +1,15 @@
 package com.alpha.omega.user.delegate;
 
+import com.alpha.omega.user.idprovider.keycloak.KeyCloakAuthenticationManager;
 import com.alpha.omega.user.model.Context;
 import com.alpha.omega.user.model.ContextPage;
 import com.alpha.omega.user.model.Role;
 import com.alpha.omega.user.model.RolePage;
 import com.alpha.omega.user.server.ContextsApiDelegate;
 import com.alpha.omega.user.service.ContextService;
+import com.alpha.omega.user.service.ServiceUtils;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.NoArgsConstructor;
@@ -16,10 +20,13 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 import java.net.URI;
+import java.util.Map;
+import java.util.Optional;
 
 import static com.alpha.omega.user.service.ServiceUtils.CORRELATION_ID;
 
@@ -31,7 +38,19 @@ public class ContextsDelegate implements ContextsApiDelegate {
     private static final Logger logger = LoggerFactory.getLogger(ContextsDelegate.class);
 
     ContextService contextService;
+    KeyCloakAuthenticationManager keyCloakAuthenticationManager;
+    @Builder.Default
+    ObjectMapper objectMapper = new ObjectMapper();
 
+    @Override
+    public Mono<ResponseEntity<ObjectNode>> getContextIdProviders(String contextId, ServerWebExchange exchange) {
+        return keyCloakAuthenticationManager.getContextIdProviders(contextId)
+                .filter(map  -> !map.isEmpty())
+                .switchIfEmpty(Mono.defer(() -> Mono.error(new BadCredentialsException("Invalid Credentials"))))
+                .map(map -> ServiceUtils.convertToJsonNode().apply(map, objectMapper))
+                .cast(ObjectNode.class)
+                .map(objectNode -> ResponseEntity.ok(objectNode));
+    }
 
     //@PreAuthorize("hasAuthority('CREATE_CONTEXTS')")
     @Override

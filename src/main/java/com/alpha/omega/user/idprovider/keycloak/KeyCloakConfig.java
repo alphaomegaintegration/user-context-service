@@ -38,6 +38,16 @@ public class KeyCloakConfig {
                 keyCloakIdpProperties.adminClientSecret());
     }
 
+    @Bean
+    KeyCloakService keyCloakService(KeyCloakIdpProperties keyCloakIdpProperties,
+                                    ObjectMapper objectMapper,Keycloak keycloak){
+        return KeyCloakService.builder()
+                .objectMapper(objectMapper)
+                .keyCloakIdpProperties(keyCloakIdpProperties)
+                .keycloak(keycloak)
+                .build();
+    }
+
     @Bean({"idProviderUserPersistence", "keyCloakUserItemWriter"})
     KeyCloakUserService keyCloakUserItemWriter(KeyCloakIdpProperties keyCloakIdpProperties,
                                                ObjectMapper objectMapper,
@@ -51,10 +61,12 @@ public class KeyCloakConfig {
     }
 
     @Bean
-    KeyCloakService.KeyCloakContextListener keyCloakContextListener(Keycloak keycloak, KeyCloakIdpProperties keyCloakIdpProperties){
+    KeyCloakService.KeyCloakContextListener keyCloakContextListener(Keycloak keycloak, KeyCloakIdpProperties keyCloakIdpProperties,
+                                                                    KeyCloakService keyCloakService){
         return KeyCloakService.KeyCloakContextListener.builder()
                 .keycloak(keycloak)
                 .keyCloakIdpProperties(keyCloakIdpProperties)
+                .keyCloakService(keyCloakService)
                 .build();
     }
 }

@@ -1,0 +1,21 @@
+{
+  "id": "health",
+  "contextId": "health",
+  "contextName": "health",
+  "description": "The context for health",
+  "enabled": true,
+  "permissions": ["UP","DOWN","UNKNOWN","NONE"],
+  "roles": [
+
+    {
+      "roleId": "health-none",
+      "roleName": "health-none",
+      "permissions": ["NONE"]
+    },
+    {
+      "roleId": "health-admin",
+      "roleName": "health-admin",
+      "permissions": ["UP","DOWN","UNKNOWN"]
+    }
+  ]
+}

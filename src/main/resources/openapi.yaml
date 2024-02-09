@@ -320,6 +320,43 @@ paths:
       tags:
         - Contexts
       summary: get context by contextId and roleId
+  /contexts/{contextId}/idproviders:
+    get:
+      operationId: getContextIdProviders
+      description: User must have LIST_CONTEXTS permission
+      parameters:
+        - description: contextId
+          explode: false
+          in: path
+          name: contextId
+          required: true
+          schema:
+            type: string
+          style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ObjectNode'
+          description: OK
+          headers:
+            Cache-Control:
+              description: "Cache-Control header provides important info on how long a response may be considered fresh"
+              schema:
+                type: string
+              example: "Cache-Control: max-age=3600, public, must-revalidate"
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Not Found
+      tags:
+        - Contexts
+      summary: get idproviders by contextId
 
   /usercontexts:
     post:

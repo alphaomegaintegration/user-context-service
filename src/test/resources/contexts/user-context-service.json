@@ -1,0 +1,60 @@
+{
+  "id": "user-context-service",
+  "contextId": "user-context-service",
+  "contextName": "user-context-service",
+  "description": "The context for user-context-service",
+  "enabled": true,
+  "permissions": [
+    "CREATE_CONTEXTS",
+    "UPDATE_CONTEXTS",
+    "LIST_CONTEXTS",
+    "DELETE_CONTEXTS",
+    "CREATE_USER_CONTEXTS",
+    "UPDATE_USER_CONTEXTS",
+    "LIST_USER_CONTEXTS",
+    "DELETE_USER_CONTEXTS",
+    "LIST_USERS",
+    "CREATE_USERS",
+    "UPDATE_USERS",
+    "DELETE_USERS",
+    "VIEW_CONFIGURATIONS",
+    "NONE"
+  ],
+  "roles": [
+    {
+      "roleId": "admin-user-context-service",
+      "roleName": "admin-user-context-service",
+      "permissions": [
+        "CREATE_CONTEXTS",
+        "UPDATE_CONTEXTS",
+        "LIST_CONTEXTS",
+        "DELETE_CONTEXTS",
+        "CREATE_USER_CONTEXTS",
+        "UPDATE_USER_CONTEXTS",
+        "LIST_USER_CONTEXTS",
+        "DELETE_USER_CONTEXTS",
+        "LIST_USERS",
+        "CREATE_USERS",
+        "UPDATE_USERS",
+        "DELETE_USERS",
+        "VIEW_CONFIGURATIONS"
+      ]
+    },
+    {
+      "roleId": "reader-user-context-service",
+      "roleName": "reader-user-context-service",
+      "permissions": [
+        "LIST_CONTEXTS",
+        "LIST_USER_CONTEXTS",
+        "LIST_USERS"
+      ]
+    },
+    {
+      "roleId": "noop-user-context-service",
+      "roleName": "noop-user-context-service",
+      "permissions": [
+        "NONE"
+      ]
+    }
+  ]
+}
