@@ -23,6 +23,7 @@ import org.springframework.batch.core.Step;
 import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.autoconfigure.web.WebProperties;
 import org.springframework.boot.web.reactive.error.DefaultErrorAttributes;
@@ -141,7 +142,7 @@ public class AppConfig {
 
 
     @Bean
-    ContextsDelegate contextsDelegate(ContextService contextService, KeyCloakAuthenticationManager keyCloakAuthenticationManager) {
+    ContextsDelegate contextsDelegate(ContextService contextService,@Qualifier("idProviderAuthenticationManager") KeyCloakAuthenticationManager keyCloakAuthenticationManager) {
         return ContextsDelegate.builder()
                 .contextService(contextService)
                 .keyCloakAuthenticationManager(keyCloakAuthenticationManager)
