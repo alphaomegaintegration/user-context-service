@@ -14,7 +14,7 @@ This README provides instructions for setting up and running the User Context Se
 2. Run the startup script to launch the required services:
 
     ```bash
-    cd /path/to/project
+    cd /path/to/project/src/test/resources/docker
     ./startServices.sh
     ```
 ## Step 2: Set up Keycloak and extract client ids and secrets
