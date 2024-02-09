@@ -26,10 +26,8 @@ public class KeyCloakJwtDecoderFactory implements JwtDecoderFactory<ClientRegist
 
     private Function<ClientRegistration, JwsAlgorithm> jwsAlgorithmResolver = (
             clientRegistration) -> SignatureAlgorithm.RS256;
-
-
-
     private final Map<String, JwtDecoder> jwtDecoders = new ConcurrentHashMap<>();
+
     @Override
     public JwtDecoder createDecoder(ClientRegistration clientRegistration) {
         return this.jwtDecoders.computeIfAbsent(clientRegistration.getRegistrationId(), (key) -> {

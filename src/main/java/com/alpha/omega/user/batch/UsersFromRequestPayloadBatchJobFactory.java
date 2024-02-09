@@ -22,11 +22,11 @@ public class UsersFromRequestPayloadBatchJobFactory {
 
     JobRepository jobRepository;
     PlatformTransactionManager transactionManager;
+    ExecutionContextPromotionListener promotionListener;
 
     Step stepUserLoadToUserEntity;
     Step stepUserLoadToIdProvider;
     UserLoadPromotionItemWriter userLoadPromotionItemWriter;
-    ExecutionContextPromotionListener promotionListener;
 
     @Builder.Default
     String stepName = "read.from.batch.request";

@@ -101,6 +101,7 @@ public class KeyCloakAuthenticationManager extends AbstractUserDetailsReactiveAu
 
          */
 
+        logger.info("##################### KeyCloakAuthenticationManager init ###################");
         webClient = WebClient.builder().baseUrl(realmBaseUrl).defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_FORM_URLENCODED_VALUE)
                 //.clientConnector(new ReactorClientHttpConnector(httpClient))
                 .build();
