@@ -1,18 +1,16 @@
 package com.alpha.omega.user.idprovider.keycloak;
 
-import com.alpha.omega.security.ClientRegistrationEntityRepository;
+import com.alpha.omega.security.ClientRegistrationEntityRepository2;
 import com.alpha.omega.security.SecurityUtils;
 import com.alpha.omega.security.UserContextPermissionsService;
-import com.alpha.omega.security.UserContextRequest;
+import com.alpha.omega.security.context.UserContextRequest;
 import com.alpha.omega.user.exception.ContextNotFoundException;
 import com.alpha.omega.user.service.ContextIdProviders;
-import com.alpha.omega.user.service.UserContextService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.checkerframework.checker.units.qual.C;
 import org.keycloak.admin.client.Keycloak;
 import org.keycloak.admin.client.resource.RealmResource;
 import org.keycloak.representations.idm.ClientRepresentation;
@@ -31,7 +29,6 @@ import org.springframework.security.oauth2.server.resource.authentication.Bearer
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.util.UriBuilder;
 import org.springframework.web.util.UriComponentsBuilder;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Scheduler;
@@ -74,7 +71,7 @@ public class KeyCloakAuthenticationManager extends AbstractUserDetailsReactiveAu
     String issuerURL;
     String realmClientId;
     String realmClientSecret;
-    ClientRegistrationEntityRepository clientRegistrationEntityRepository;
+    ClientRegistrationEntityRepository2 clientRegistrationEntityRepository;
     Keycloak keycloak;
 
     WebClient webClient;

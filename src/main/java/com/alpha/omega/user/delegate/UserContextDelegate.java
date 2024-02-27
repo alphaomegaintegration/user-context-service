@@ -1,13 +1,13 @@
 package com.alpha.omega.user.delegate;
 
+import com.alpha.omega.security.context.UserContextPermissions;
+import com.alpha.omega.security.context.UserContextRequest;
 import com.alpha.omega.user.model.UserContext;
 import com.alpha.omega.user.model.UserContextBatchRequest;
 import com.alpha.omega.user.model.UserContextPage;
-import com.alpha.omega.user.model.UserContextPermissions;
 import com.alpha.omega.user.server.UsercontextsApi;
 import com.alpha.omega.user.server.UsercontextsApiDelegate;
 import com.alpha.omega.user.service.ContextService;
-import com.alpha.omega.security.UserContextRequest;
 import com.alpha.omega.user.service.UserContextService;
 import io.micrometer.common.util.StringUtils;
 import lombok.AllArgsConstructor;

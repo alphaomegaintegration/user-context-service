@@ -2,6 +2,9 @@ package com.alpha.omega.user;
 
 import com.alpha.omega.security.ClientRegistrationConfig;
 import com.alpha.omega.security.ReactiveSecurityWebFilterFactory;
+import com.alpha.omega.security.context.UserContextPermissionsService;
+import com.alpha.omega.security.idprovider.keycloak.KeyCloakAuthenticationManager;
+import com.alpha.omega.security.idprovider.keycloak.KeyCloakUtils;
 import com.alpha.omega.user.delegate.PublicDelegate;
 import com.alpha.omega.user.idprovider.keycloak.*;
 import com.alpha.omega.user.server.PublicApiController;
@@ -132,15 +135,16 @@ public class SecurityConfig {
 
     @Bean("idProviderAuthenticationManager")
     @ConditionalOnMissingBean
-    ReactiveAuthenticationManager keyCloakAuthenticationManager(UserContextService userContextService,
+    ReactiveAuthenticationManager keyCloakAuthenticationManager(UserContextService userContextPermissionsService,
                                                                 KeyCloakUserService keyCloakUserService,
                                                                 Environment env,
                                                                 Keycloak keycloak,
                                                                 KeyCloakJwtDecoderFactory keyCloakJwtDecoderFactory){
+
+
         return KeyCloakAuthenticationManager.builder()
                 .defaultContext(KeyCloakUtils.KEY_CLOAK_DEFAULT_CONTEXT)
-                .userContextService(userContextService)
-                .keyCloakUserService(keyCloakUserService)
+                .userContextPermissionsService(userContextPermissionsService)
                 .realmClientId(env.getProperty("idp.provider.keycloak.client-id"))
                 .realmClientSecret(env.getProperty("idp.provider.keycloak.client-secret"))
                 .realmTokenUri(env.getProperty("idp.provider.keycloak.token-uri"))

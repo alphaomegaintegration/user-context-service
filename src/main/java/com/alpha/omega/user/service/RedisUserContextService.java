@@ -1,10 +1,16 @@
 package com.alpha.omega.user.service;
 
 import com.alpha.omega.security.SecurityUtils;
-import com.alpha.omega.security.UserContextRequest;
+import com.alpha.omega.security.context.UserContextPermissions;
+import com.alpha.omega.security.context.UserContextPermissionsService;
+import com.alpha.omega.security.context.UserContextRequest;
 import com.alpha.omega.user.exception.ContextNotFoundException;
 import com.alpha.omega.user.exception.UserNotFoundException;
-import com.alpha.omega.user.model.*;
+//import com.alpha.omega.user.model.*;
+import com.alpha.omega.user.model.Role;
+import com.alpha.omega.user.model.UserContext;
+import com.alpha.omega.user.model.UserContextBatchRequest;
+import com.alpha.omega.user.model.UserContextPage;
 import com.alpha.omega.user.repository.*;
 import com.alpha.omega.user.utils.Constants;
 import com.alpha.omega.user.validator.ServiceError;
@@ -574,12 +580,13 @@ public class RedisUserContextService implements UserContextService {
                     Set<String> permissions = roles.stream()
                             .flatMap(role -> role.getPermissions().stream())
                             .collect(Collectors.toSet());
-                    userContextPermissions.setPermissions(new ArrayList<>(permissions));
+                    userContextPermissions.setPermissions(permissions);
                     return userContextPermissions;
                 })
 
                 .doOnNext(ucp -> logger.debug("got ucp => {}", ucp.toString()));
     }
+
 
     @Builder
     @NoArgsConstructor

@@ -1,6 +1,8 @@
 package com.alpha.omega.user.idprovider.keycloak;
 
+import com.alpha.omega.security.key.KeyUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.commons.text.RandomStringGenerator;
 import org.keycloak.representations.idm.ClientRepresentation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,7 +50,7 @@ public class KeyCloakUtils {
             try{
                 jwt = jwtDecoder.decode(accessToken);
             } catch (Exception e){
-                KeyCloakUserService.logger.warn("Could not decode jwt!",e);
+                logger.warn("Could not decode jwt!",e);
             }
             return Optional.ofNullable(jwt);
         };
@@ -63,6 +65,15 @@ public class KeyCloakUtils {
             logger.error("Could not load {} for client template",defaultClientPath,e);
         }
         return clientRepresentation;
+    }
+
+    public static String generateRandomSpecialCharacters(int length) {
+        KeyUtils.SecureTextRandomProvider stp = new KeyUtils.SecureTextRandomProvider();
+        RandomStringGenerator pwdGenerator = new RandomStringGenerator.Builder()
+                .withinRange(33, 45)
+                .usingRandom(stp)
+                .build();
+        return pwdGenerator.generate(length);
     }
 
     public static final Integer DEFAULT_KEY_SIZE = 256;

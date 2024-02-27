@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
 
 import java.util.function.Function;
 
@@ -19,15 +20,9 @@ import static com.alpha.omega.user.idprovider.keycloak.KeyCloakService.MASTER;
 @EnableConfigurationProperties(value = {KeyCloakIdpProperties.class})
 public class KeyCloakConfig {
 
+
     @Bean
     Keycloak keycloak(KeyCloakIdpProperties keyCloakIdpProperties){
-
-        /*
-
-    public static Keycloak getInstance(String serverUrl, String realm, String username, String password, String clientId, String clientSecret) {
-        return getInstance(serverUrl, realm, username, password, clientId, clientSecret, (SSLContext)null, (Object)null, false, (String)null);
-    }
-         */
 
         return  Keycloak.getInstance(
                 keyCloakIdpProperties.baseUrl(),
@@ -37,6 +32,7 @@ public class KeyCloakConfig {
                 ADMIN_CLI,
                 keyCloakIdpProperties.adminClientSecret());
     }
+
 
     @Bean
     KeyCloakService keyCloakService(KeyCloakIdpProperties keyCloakIdpProperties,

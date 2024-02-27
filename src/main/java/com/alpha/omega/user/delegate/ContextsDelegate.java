@@ -1,6 +1,6 @@
 package com.alpha.omega.user.delegate;
 
-import com.alpha.omega.user.idprovider.keycloak.KeyCloakAuthenticationManager;
+import com.alpha.omega.security.idprovider.keycloak.KeyCloakAuthenticationManager;
 import com.alpha.omega.user.model.Context;
 import com.alpha.omega.user.model.ContextPage;
 import com.alpha.omega.user.model.Role;
@@ -44,7 +44,7 @@ public class ContextsDelegate implements ContextsApiDelegate {
 
     @Override
     public Mono<ResponseEntity<ObjectNode>> getContextIdProviders(String contextId, ServerWebExchange exchange) {
-        return keyCloakAuthenticationManager.getContextIdProviders(contextId)
+        return keyCloakAuthenticationManager.getClientIdProviders(contextId)
                 .filter(map  -> !map.isEmpty())
                 .switchIfEmpty(Mono.defer(() -> Mono.error(new BadCredentialsException("Invalid Credentials"))))
                 .map(map -> ServiceUtils.convertToJsonNode().apply(map, objectMapper))

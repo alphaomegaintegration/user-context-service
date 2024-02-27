@@ -1,5 +1,6 @@
 package com.alpha.omega.user;
 
+import com.alpha.omega.security.idprovider.keycloak.KeyCloakAuthenticationManager;
 import com.alpha.omega.user.batch.BatchJobService;
 import com.alpha.omega.user.delegate.ContextsDelegate;
 import com.alpha.omega.user.delegate.PublicDelegate;
@@ -8,7 +9,6 @@ import com.alpha.omega.user.exception.ContextNotFoundException;
 import com.alpha.omega.user.exception.ReactiveExceptionHandler;
 import com.alpha.omega.user.exception.ServiceException;
 import com.alpha.omega.user.exception.UserNotFoundException;
-import com.alpha.omega.user.idprovider.keycloak.KeyCloakAuthenticationManager;
 import com.alpha.omega.user.repository.*;
 import com.alpha.omega.user.server.ContextsApiController;
 //import com.alpha.omega.user.server.UsersApiController;

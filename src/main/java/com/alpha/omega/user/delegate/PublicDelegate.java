@@ -2,7 +2,7 @@ package com.alpha.omega.user.delegate;
 
 import com.alpha.omega.security.SecurityUser;
 import com.alpha.omega.security.SecurityUtils;
-import com.alpha.omega.user.idprovider.keycloak.KeyCloakAuthenticationManager;
+import com.alpha.omega.security.idprovider.keycloak.KeyCloakAuthenticationManager;
 import com.alpha.omega.user.server.PublicApi;
 import com.alpha.omega.user.server.PublicApiDelegate;
 import com.alpha.omega.user.service.ServiceUtils;
