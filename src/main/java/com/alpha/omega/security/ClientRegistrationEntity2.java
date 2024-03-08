@@ -14,7 +14,6 @@ import java.util.Map;
 import java.util.Set;
 
 import static com.alpha.omega.user.service.ServiceUtils.CLIENT_REGISTRATION_KEY_PREFIX;
-import static com.alpha.omega.user.service.ServiceUtils.ROLE_KEY_PREFIX;
 
 @RedisHash(CLIENT_REGISTRATION_KEY_PREFIX)
 @JsonIdentityInfo(
@@ -27,7 +26,7 @@ import static com.alpha.omega.user.service.ServiceUtils.ROLE_KEY_PREFIX;
 @Getter
 @Setter
 @ToString
-public class ClientRegistrationEntity {
+public class ClientRegistrationEntity2 {
 
     @Id
     private String id;

@@ -1,6 +1,7 @@
 package com.alpha.omega.user.idprovider.keycloak
 
 import com.alpha.omega.security.SecurityUtils
+import com.alpha.omega.security.idprovider.keycloak.KeyCloakAuthenticationManager
 import com.alpha.omega.user.AbstractIntegrationTest
 import com.alpha.omega.user.AppConfig
 import com.alpha.omega.user.SecurityConfig

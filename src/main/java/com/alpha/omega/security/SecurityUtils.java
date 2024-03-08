@@ -1,6 +1,6 @@
 package com.alpha.omega.security;
 
-import com.alpha.omega.user.model.UserContextPermissions;
+import com.alpha.omega.security.context.UserContextPermissions;
 import com.alpha.omega.user.repository.UserEntity;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;

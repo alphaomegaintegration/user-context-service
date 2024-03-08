@@ -548,4 +548,11 @@ public class RedisContextService implements ContextService {
                 .map(extractContextFromJson())
                 .flatMap(optionalContext -> this.createContext(optionalContext.get()));
     }
+
+    @Override
+    public Flux<Context> getAllContexts() {
+        return Flux.fromIterable(contextRepository.findAll())
+                .publishOn(scheduler)
+                .map(convertContextEntityToContext);
+    }
 }

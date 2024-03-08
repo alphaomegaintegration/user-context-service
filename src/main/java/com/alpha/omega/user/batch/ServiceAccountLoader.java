@@ -71,6 +71,8 @@ public class ServiceAccountLoader implements ApplicationListener<ContextLoader.C
     public void onApplicationEvent(ContextLoader.ContextLoadedEvent event) {
 
         final Context context = event.getContext();
+
+
         if (loadServiceAccounts) {
             if (!hasRun.get()) {
                 try {

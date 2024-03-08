@@ -2,9 +2,10 @@ package com.alpha.omega.user.delegate;
 
 import com.alpha.omega.security.SecurityUser;
 import com.alpha.omega.security.SecurityUtils;
-import com.alpha.omega.user.idprovider.keycloak.KeyCloakAuthenticationManager;
+import com.alpha.omega.security.idprovider.keycloak.KeyCloakAuthenticationManager;
 import com.alpha.omega.user.server.PublicApi;
 import com.alpha.omega.user.server.PublicApiDelegate;
+import com.alpha.omega.user.service.ContextService;
 import com.alpha.omega.user.service.ServiceUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -17,6 +18,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.server.ServerWebExchange;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
 
@@ -29,6 +31,7 @@ public class PublicDelegate implements PublicApiDelegate {
     private static final Logger logger = LoggerFactory.getLogger(PublicDelegate.class);
 
     KeyCloakAuthenticationManager keyCloakAuthenticationManager;
+    ContextService contextService;
     @Builder.Default
     ObjectMapper objectMapper = new ObjectMapper();
 
@@ -60,4 +63,16 @@ public class PublicDelegate implements PublicApiDelegate {
                 .cast(ObjectNode.class)
                 .map(objectNode -> ResponseEntity.ok(objectNode));
     }
+
+    @Override
+    public Mono<ResponseEntity<ObjectNode>> getJwkKeys(ServerWebExchange exchange) {
+
+        Flux<String> contextIds = contextService.getAllContexts().map(ctx -> ctx.getContextId());
+        return keyCloakAuthenticationManager.getPublicKeysFromContextIds(contextIds)
+                .map(map -> ServiceUtils.convertToJsonNode().apply(map, objectMapper))
+                .cast(ObjectNode.class)
+                .map(objectNode -> ResponseEntity.ok(objectNode));
+    }
+
+
 }

@@ -1,7 +1,7 @@
 package com.alpha.omega.user.idprovider.keycloak;
 
 import com.alpha.omega.security.ClientNotFoundException;
-import com.alpha.omega.security.ClientRegistrationEntity;
+import com.alpha.omega.security.ClientRegistrationEntity2;
 import com.alpha.omega.user.model.Context;
 import com.alpha.omega.user.service.ContextCreated;
 import com.alpha.omega.user.service.RandomPasswordGenerator;
@@ -11,9 +11,9 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.NoArgsConstructor;
 import org.keycloak.admin.client.Keycloak;
-import org.keycloak.admin.client.resource.ClientResource;
 import org.keycloak.admin.client.resource.RealmResource;
 import org.keycloak.representations.idm.ClientRepresentation;
+import org.keycloak.representations.idm.CredentialRepresentation;
 import org.keycloak.representations.idm.RealmRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
 import org.slf4j.Logger;
@@ -37,12 +37,9 @@ import reactor.core.scheduler.Schedulers;
 import javax.annotation.PostConstruct;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 
-import static com.alpha.omega.user.idprovider.keycloak.KeyCloakUtils.MAP_OBJECT;
-import static com.alpha.omega.user.idprovider.keycloak.KeyCloakUtils.createAKey;
+import static com.alpha.omega.user.idprovider.keycloak.KeyCloakUtils.*;
 
 @Builder
 @NoArgsConstructor
@@ -53,8 +50,10 @@ public class KeyCloakService {
     public static final String ADMIN_CLI = "admin-cli";
     /*
      PUT /admin/realms/testing/clients/4b2451a1-c8d0-4966-8707-a33389ce5cb7
+      /admin/realms/user-context-service/clients/b2571876-44bc-4881-934a-5cb70f3a95de/client-secret
      */
     public static final String PUT_CLIENT_URI = "/admin/realms/{realm}/clients/{id}";
+    public static final String GET_CLIENT_SECRET_URI = "/admin/realms/{realm}/clients/{id}/client-secret";
 
     WebClient webClient;
     ObjectMapper objectMapper;
@@ -72,15 +71,7 @@ public class KeyCloakService {
                 .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_FORM_URLENCODED_VALUE)
                 .build();
         KeyCloakUtils.loadClientRepresentationTemplate(KeyCloakUtils.DEFAULT_CLIENT_TEMPLATE).ifPresent(cr -> template = cr);
-        /*
-        keycloak = Keycloak.getInstance(
-                keyCloakIdpProperties.baseUrl(),
-                MASTER,
-                keyCloakIdpProperties.adminUsername(),
-                keyCloakIdpProperties.adminPassword(),
-                ADMIN_CLI);
 
-         */
     }
 
     /*
@@ -106,6 +97,38 @@ public class KeyCloakService {
                         .with("client_secret", keyCloakIdpProperties.adminClientSecret()))
                 .retrieve()
                 .bodyToMono(MAP_OBJECT);
+    }
+
+    public Mono<Optional<ClientRepresentation>> getClientFromContextId(String contextId){
+       return  Mono.just(keycloak.realm(contextId).clients().findAll().stream()
+                .filter(cr -> cr.getClientId().equals(contextId))
+                .findFirst())
+               .publishOn(scheduler);
+    }
+
+    public Mono<String> getClientSecret(String contextId){
+         /*
+                {
+    "type": "secret",
+    "value": "0h7LHPeTnDruV2RYVgh9cj8T1n1JHElLk369"
+}
+                 */
+        Optional<ClientRepresentation> clientOptional = keycloak.realm(contextId).clients().findAll().stream()
+                .filter(cr -> cr.getClientId().equals(contextId))
+                .findFirst();
+
+        return Mono.from(adminCliAccessCreds())
+                .publishOn(scheduler)
+                .flatMap(creds -> webClient.get()
+                        .uri(uriBuilder -> uriBuilder.path(GET_CLIENT_SECRET_URI)
+                                .build(Map.of("realm",contextId,"id",clientOptional.orElseThrow(() -> new ClientNotFoundException("Client "+contextId))
+                                        .getId())))
+                        .headers(h -> h.setContentType(MediaType.APPLICATION_JSON))
+                        .headers(h -> h.setBearerAuth((String) creds.get("access_token")))
+                        .retrieve()
+                        .toEntity(MAP_OBJECT))
+                .map(mapResponseEntity -> mapResponseEntity.getBody())
+                .map(map -> (String)map.get("value"));
     }
 
     public Mono<ResponseEntity<Map<String, Object>>> createRealm(String realmName){
@@ -186,10 +209,6 @@ public class KeyCloakService {
 
      */
 
-    Function<ClientRegistrationEntity,ClientRepresentation> clientRepresentation(ClientRegistrationEntity clientRegistration) {
-        return null;
-    }
-
     /*
     https://gist.github.com/thomasdarimont/c4e739c5a319cf78a4cff3b87173a84b
      Keycloak keycloak = KeycloakBuilder.builder() //
@@ -213,25 +232,8 @@ public class KeyCloakService {
 RealmRepresentation realm = keycloak.realm("master").toRepresentation();
      */
 
+    /*
     public Mono<Map<String, Object>> passwordGrantLoginMap(String username, String password) {
-
-        /*
-        Keycloak keycloak = KeycloakBuilder.builder()
-                .serverUrl("http://localhost:8080/auth")
-                .grantType(OAuth2Constants.PASSWORD)
-                .realm("master")
-                .clientId("admin-cli")
-                .username("admin")
-                .password("password")
-                .resteasyClient(
-                        new ResteasyClientBuilder()
-                                .connectionPoolSize(10).build()
-                ).build();
-
-        keycloak.tokenManager().getAccessToken();
-        RealmResource realmResource = keycloak.realm("realm-name");
-
-         */
 
         return webClient.post()
                 .uri(keyCloakIdpProperties.tokenUri())
@@ -250,6 +252,8 @@ RealmRepresentation realm = keycloak.realm("master").toRepresentation();
         return this.passwordGrantLoginMap(username, password)
                 .map(KeyCloakUtils.convertResultMapToJwt(jwtDecoder));
     }
+
+     */
 
     /*
     minimal from https://www.mastertheboss.com/keycloak/how-to-use-keycloak-admin-rest-api/
@@ -332,7 +336,7 @@ RealmRepresentation realm = keycloak.realm("master").toRepresentation();
     optionalClientScopes, authorizationSettings, access, origin
      */
 
-    public static Function<ClientRegistrationEntity, KCClientRepresentation> convertClientRegistrationEntityToClientRepresentation(){
+    public static Function<ClientRegistrationEntity2, KCClientRepresentation> convertClientRegistrationEntityToClientRepresentation(){
 
         return entity -> {
 
@@ -368,183 +372,155 @@ RealmRepresentation realm = keycloak.realm("master").toRepresentation();
             clientRepresentation.setClientId(clientName);
             clientRepresentation.setName(clientName);
             clientRepresentation.setDescription("Client for "+clientName);
-            clientRepresentation.setSecret(createAKey());
+            clientRepresentation.setSecret(generateRandomSpecialCharacters(16));
             return clientRepresentation;
         };
     }
 
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static final class KeyCloakContextListener  implements ApplicationListener<ContextCreated> {
-        KeyCloakService keyCloakService;
-        @Builder.Default
-        ResourceLoader resourceLoader = new DefaultResourceLoader();
-        @Builder.Default
-        ObjectMapper objectMapper = new ObjectMapper();
-        Keycloak keycloak;
-        KeyCloakIdpProperties keyCloakIdpProperties;
-        ClientRepresentation template;
-        static ConcurrentHashMap<String, Boolean> idempotentGuard = new ConcurrentHashMap<>();
 
+    void createRealmFromContext(Context context) {
 
+        logger.info("Got context {} in KeyCloakContextListener", context.getContextId());
+        RealmRepresentation realmRepresentation = null;
+        try{
+            //UserRepresentation userRepresentation;
+            //RealmResource realmResource = keycloak.realm(context.getContextId());
 
-        @PostConstruct
-        public void init(){
+            realmRepresentation = realmRepresentationFunction(keyCloakIdpProperties).apply(context.getContextId());
+            //realmRepresentation.setUsers(createServiceAccountList(context));
+            keycloak.realms().create(realmRepresentation);
 
-            KeyCloakUtils.loadClientRepresentationTemplate(KeyCloakUtils.DEFAULT_CLIENT_TEMPLATE).ifPresent(cr -> template = cr);
-            logger.info("Client template {}",template);
-            //template = KeyCloakUtils.loadClientRepresentationTemplate(KeyCloakUtils.DEFAULT_CLIENT_TEMPLATE);
+        } catch (Exception cex){
+            logger.warn("Could not create realm {}", context.getContextId(),cex);
         }
 
-        @Override
-        public void onApplicationEvent(ContextCreated event) {
-            Context context = event.getContext();
-            if (idempotentGuard.computeIfAbsent(context.getContextId(), val -> Boolean.TRUE)){
-                idempotentGuard.put(context.getContextId(), Boolean.FALSE);
-                logger.info("Got context {} in KeyCloakContextListener",context.getContextId());
-                RealmRepresentation realmRepresentation = null;
-                try{
-                    //UserRepresentation userRepresentation;
-                    //RealmResource realmResource = keycloak.realm(context.getContextId());
-
-                    realmRepresentation = realmRepresentationFunction(keyCloakIdpProperties).apply(context.getContextId());
-                    //realmRepresentation.setUsers(createServiceAccountList(context));
-                    keycloak.realms().create(realmRepresentation);
-
-                } catch (Exception cex){
-                    logger.warn("Could not create realm {}",context.getContextId(),cex);
-                }
-
-                try{
-                    RealmResource realm =   keycloak.realm(context.getContextId());
-                    String realmName = realm.toRepresentation().getRealm();
-                    logger.info("Acquired realm {} for creating client {}",realmName, context.getContextId());
-                    Optional<ClientRepresentation> clientRepresentationOptional = realm.clients().findAll().stream()
-                            .filter(cr -> cr.getClientId().equals(context.getContextId()))
-                            .findAny();
-                    if (!clientRepresentationOptional.isPresent()){
-                        ClientRepresentation clientRepresentation = clientRepresentationFunction(template).apply(context.getContextId());
+        try{
+            RealmResource realm =   keycloak.realm(context.getContextId());
+            String realmName = realm.toRepresentation().getRealm();
+            logger.info("Acquired realm {} for creating client {}",realmName, context.getContextId());
+            Optional<ClientRepresentation> clientRepresentationOptional = realm.clients().findAll().stream()
+                    .filter(cr -> cr.getClientId().equals(context.getContextId()))
+                    .findAny();
+            if (!clientRepresentationOptional.isPresent()){
+                ClientRepresentation clientRepresentation = clientRepresentationFunction(template).apply(context.getContextId());
                     /*clientRepresentation.setServiceAccountsEnabled(Boolean.FALSE);
                     clientRepresentation.setAuthorizationServicesEnabled(Boolean.FALSE);
                     clientRepresentation.setImplicitFlowEnabled(Boolean.FALSE);
                     clientRepresentation.setDirectAccessGrantsEnabled(Boolean.FALSE);
                     clientRepresentation.setImplicitFlowEnabled(Boolean.FALSE);*/
-                        Response response = realm.clients().create(clientRepresentation);
-                        logger.info("From client {} Got client create response status {}",clientRepresentation.getClientId(),response.getStatus());
-                    } else {
-                        logger.info("{} client in realm {} exists not creating client",context.getContextId(),realmName );
-                    }
+                Response response = realm.clients().create(clientRepresentation);
+                logger.info("From client {} Got client create response status {}",clientRepresentation.getClientId(),response.getStatus());
+            } else {
+                logger.info("{} client in realm {} exists not creating client", context.getContextId(),realmName );
+            }
 
-                } catch (Exception cex){
-                    logger.warn("Could not create client {}",context.getContextId(),cex);
-                }
+        } catch (Exception cex){
+            logger.warn("Could not create client {}", context.getContextId(),cex);
+        }
 
-                //logger.info("################### From client {} ", context.getContextId());
-                try{
-                    RealmResource realm =   keycloak.realm(context.getContextId());
-                    logger.info("Acquired realm {} for updating client {}",realm.toRepresentation().getRealm(), context.getContextId());
+        //logger.info("################### From client {} ", context.getContextId());
+        try{
+            RealmResource realm =   keycloak.realm(context.getContextId());
+            logger.info("Acquired realm {} for updating client {}",realm.toRepresentation().getRealm(), context.getContextId());
 
-                    String serviceAccountName = calculateServiceAccountName().apply(context.getContextId());
-                    List<UserRepresentation> users = realm.users().search(serviceAccountName);
-
-
-                    if (users.isEmpty()){
-                        Response userCreateResponse =  realm.users().create(createServiceAccount(context));
-                        logger.info("################### From client {} Got user create response status {}",context.getContextId(),userCreateResponse.getStatus());
-                    } else {
-                        logger.info("user {} exists in client {} not creating user",serviceAccountName,context.getContextId());
-                    }
-
-                    Optional<ClientRepresentation> clientRepresentationOptional = realm.clients().findAll()
-                            .stream()
-                            .peek(cr -> logger.info("Found clients with id {}",cr.getClientId()))
-                            .filter(cr -> cr.getClientId().equals(context.getContextId()))
-                            .findAny();
-
-                    if (clientRepresentationOptional.isPresent()){
-                        ClientRepresentation foundClientRepresentation = clientRepresentationOptional.get();
-                        //ClientRepresentation clientRepresentation = clientResource.toRepresentation();
-                        //foundClientRepresentation.setAuthorizationServicesEnabled(Boolean.TRUE);
-                        foundClientRepresentation.setDirectAccessGrantsEnabled(Boolean.TRUE);
-                        foundClientRepresentation.setImplicitFlowEnabled(Boolean.TRUE);
-                        foundClientRepresentation.setServiceAccountsEnabled(Boolean.FALSE);
-                        foundClientRepresentation.setPublicClient(Boolean.FALSE);
-                        foundClientRepresentation.setSecret(RandomPasswordGenerator.generateCommonsLang3Password());
-
-                        ClientRepresentation cr = new ClientRepresentation();
-                        cr.setAuthorizationServicesEnabled(Boolean.TRUE);
-                        cr.setDirectAccessGrantsEnabled(Boolean.TRUE);
-                        cr.setImplicitFlowEnabled(Boolean.TRUE);
-                        cr.setServiceAccountsEnabled(Boolean.FALSE);
-                        cr.setPublicClient(Boolean.FALSE);
-                        cr.setId(foundClientRepresentation.getId());
-
-                        Optional<UserRepresentation>  foundUserOptional = realm.users().search(serviceAccountName).stream()
-                                .filter(user -> user.getUsername().equals(serviceAccountName))
-                                .findAny();
-
-                        //ClientResource clientResource = realm.clients().get(foundClientRepresentation.getId());
-                        //clientResource.generateNewSecret();
-                        //clientResource.update(cr);
+            String serviceAccountName = calculateServiceAccountName().apply(context.getContextId());
+            List<UserRepresentation> users = realm.users().search(serviceAccountName);
 
 
-                        //clientResource.
-                        //String val = clientResource.generateNewSecret().getValue()
-                        //realm.clients().get(clientRepresentation.getId()).update(clientRepresentation);
+            if (users.isEmpty()){
+                Response userCreateResponse =  realm.users().create(createServiceAccount(context));
+                logger.info("################### From client {} Got user create response status {}", context.getContextId(),userCreateResponse.getStatus());
+            } else {
+                logger.info("user {} exists in client {} not creating user",serviceAccountName, context.getContextId());
+            }
 
-                        keyCloakService.updateClient(context.getContextId(), foundClientRepresentation).subscribe();
+            Optional<ClientRepresentation> clientRepresentationOptional = realm.clients().findAll()
+                    .stream()
+                    .peek(cr -> logger.info("Found clients with id {}",cr.getClientId()))
+                    .filter(cr -> cr.getClientId().equals(context.getContextId()))
+                    .findAny();
 
-                    } else {
+            ClientRepresentation foundClientRepresentation = null;
 
-                    }
+            if (clientRepresentationOptional.isPresent()){
+                foundClientRepresentation = clientRepresentationOptional.get();
+                //ClientRepresentation clientRepresentation = clientResource.toRepresentation();
+                //foundClientRepresentation.setAuthorizationServicesEnabled(Boolean.TRUE);
+                foundClientRepresentation.setDirectAccessGrantsEnabled(Boolean.TRUE);
+                foundClientRepresentation.setImplicitFlowEnabled(Boolean.TRUE);
+                foundClientRepresentation.setServiceAccountsEnabled(Boolean.FALSE);
+                foundClientRepresentation.setPublicClient(Boolean.FALSE);
+                foundClientRepresentation.setSecret(RandomPasswordGenerator.generateCommonsLang3Password(36));
 
-                } catch (Exception cex){
-                    logger.warn("Could not update client {}",context.getContextId(),cex);
-                }
+                ClientRepresentation cr = new ClientRepresentation();
+                cr.setAuthorizationServicesEnabled(Boolean.TRUE);
+                cr.setDirectAccessGrantsEnabled(Boolean.TRUE);
+                cr.setImplicitFlowEnabled(Boolean.TRUE);
+                cr.setServiceAccountsEnabled(Boolean.FALSE);
+                cr.setPublicClient(Boolean.FALSE);
+                cr.setId(foundClientRepresentation.getId());
 
-                keycloak.realm(context.getContextId()).clients().findAll().stream()
-                        //.filter(cr -> cr.getClientId().equals(context.getContextId()))
-                        .forEach(cr -> logger.info("From context {} Got clients {} name {} secret {}",new Object[]{context.getContextId(),cr.getClientId(),cr.getName(), cr.getSecret()} ));
+                Optional<UserRepresentation>  foundUserOptional = realm.users().search(serviceAccountName).stream()
+                        .filter(user -> user.getUsername().equals(serviceAccountName))
+                        .findAny();
 
+                //ClientResource clientResource = realm.clients().get(foundClientRepresentation.getId());
+                //clientResource.generateNewSecret();
+                //clientResource.update(cr);
+
+
+                //clientResource.
+                //String val = clientResource.generateNewSecret().getValue()
+                //realm.clients().get(clientRepresentation.getId()).update(clientRepresentation);
+
+                updateClient(context.getContextId(), foundClientRepresentation).subscribe();
+
+
+                /*
+                getClientSecret(context.getContextId())
+                        .subscribe(secret -> {
+                            logger.info("Got contextId => {}  secret => {}",context.getContextId(), secret);
+                        });
+
+                 */
+
+
+            } else {
 
             }
 
+        } catch (Exception cex){
+            logger.warn("Could not update client {}", context.getContextId(),cex);
         }
 
-        /*
-        {
-      "id": "720071b8-3a3f-4de2-aef3-16a78a4bff54",
-      "createdTimestamp": 1703812598807,
-      "username": "service-account-user-context-service",
-      "enabled": true,
-      "totp": false,
-      "emailVerified": false,
-      "serviceAccountClientId": "user-context-service",
-      "disableableCredentialTypes": [],
-      "requiredActions": [],
-      "notBefore": 0
+
     }
-         */
 
-        static final Function<String, String> calculateServiceAccountName(){
-            return contextId -> new StringBuilder("service-account-").append(contextId).toString();
-        }
+    static final Function<String, String> calculateServiceAccountName(){
+        return contextId -> new StringBuilder("service-account-").append(contextId).toString();
+    }
 
-        private UserRepresentation createServiceAccount(Context context){
-            UserRepresentation userRepresentation = new UserRepresentation();
-            userRepresentation.setEnabled(Boolean.TRUE);
-            userRepresentation.setCreatedTimestamp(System.currentTimeMillis());
-            //userRepresentation.setServiceAccountClientId(context.getContextId());
-            userRepresentation.setUsername(calculateServiceAccountName().apply(context.getContextId()));
-            //userRepresentation.setUsername(context.getContextId() + "-user");
-            userRepresentation.setId(UUID.randomUUID().toString());
-            return userRepresentation;
-        }
+    static UserRepresentation createServiceAccount(Context context){
+        UserRepresentation userRepresentation = new UserRepresentation();
+        userRepresentation.setEnabled(Boolean.TRUE);
+        userRepresentation.setCreatedTimestamp(System.currentTimeMillis());
+        //userRepresentation.setServiceAccountClientId(context.getContextId());
+        userRepresentation.setUsername(calculateServiceAccountName().apply(context.getContextId()));
+        //userRepresentation.setUsername(context.getContextId() + "-user");
+        userRepresentation.setId(UUID.randomUUID().toString());
+        userRepresentation.setCredentials(generateUserCredentials(context));
+        return userRepresentation;
+    }
 
-        private List<UserRepresentation> createServiceAccountList(Context context) {
-            return Collections.singletonList(createServiceAccount(context));
-        }
+    private static List<CredentialRepresentation> generateUserCredentials(Context context) {
+        CredentialRepresentation creds = new CredentialRepresentation();
+        creds.setType(CredentialRepresentation.PASSWORD);
+        creds.setValue("password");
+        return Collections.singletonList(creds);
+    }
+
+    static  List<UserRepresentation> createServiceAccountList(Context context) {
+        return Collections.singletonList(createServiceAccount(context));
     }
 
 }

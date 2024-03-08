@@ -1,6 +1,5 @@
 package com.alpha.omega.user.idprovider.keycloak;
 
-import com.alpha.omega.user.batch.BatchUtil;
 import com.alpha.omega.user.batch.UserLoad;
 import com.alpha.omega.user.repository.UserEntity;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -19,15 +18,9 @@ import static com.alpha.omega.user.idprovider.keycloak.KeyCloakService.MASTER;
 @EnableConfigurationProperties(value = {KeyCloakIdpProperties.class})
 public class KeyCloakConfig {
 
+
     @Bean
     Keycloak keycloak(KeyCloakIdpProperties keyCloakIdpProperties){
-
-        /*
-
-    public static Keycloak getInstance(String serverUrl, String realm, String username, String password, String clientId, String clientSecret) {
-        return getInstance(serverUrl, realm, username, password, clientId, clientSecret, (SSLContext)null, (Object)null, false, (String)null);
-    }
-         */
 
         return  Keycloak.getInstance(
                 keyCloakIdpProperties.baseUrl(),
@@ -37,6 +30,7 @@ public class KeyCloakConfig {
                 ADMIN_CLI,
                 keyCloakIdpProperties.adminClientSecret());
     }
+
 
     @Bean
     KeyCloakService keyCloakService(KeyCloakIdpProperties keyCloakIdpProperties,
@@ -61,9 +55,9 @@ public class KeyCloakConfig {
     }
 
     @Bean
-    KeyCloakService.KeyCloakContextListener keyCloakContextListener(Keycloak keycloak, KeyCloakIdpProperties keyCloakIdpProperties,
-                                                                    KeyCloakService keyCloakService){
-        return KeyCloakService.KeyCloakContextListener.builder()
+    KeyCloakApplicationEventsListener keyCloakContextListener(Keycloak keycloak, KeyCloakIdpProperties keyCloakIdpProperties,
+                                                              KeyCloakService keyCloakService){
+        return KeyCloakApplicationEventsListener.builder()
                 .keycloak(keycloak)
                 .keyCloakIdpProperties(keyCloakIdpProperties)
                 .keyCloakService(keyCloakService)

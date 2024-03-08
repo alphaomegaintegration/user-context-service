@@ -1,11 +1,9 @@
 package com.alpha.omega.user.service;
 
-import com.alpha.omega.security.UserContextPermissionsService;
-import com.alpha.omega.security.UserContextRequest;
+import com.alpha.omega.security.context.UserContextPermissionsService;
 import com.alpha.omega.user.model.UserContext;
 import com.alpha.omega.user.model.UserContextBatchRequest;
 import com.alpha.omega.user.model.UserContextPage;
-import com.alpha.omega.user.model.UserContextPermissions;
 import org.springframework.data.domain.PageRequest;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;

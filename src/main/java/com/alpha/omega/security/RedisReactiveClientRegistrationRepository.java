@@ -1,6 +1,8 @@
 package com.alpha.omega.security;
 
-import com.alpha.omega.user.idprovider.keycloak.KeyCloakUserService;
+import com.alpha.omega.security.client.ClientRegistrationEntity;
+import com.alpha.omega.security.client.ClientRegistrationEntityRepository;
+import com.alpha.omega.security.client.ClientRegistrationService;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.NoArgsConstructor;
