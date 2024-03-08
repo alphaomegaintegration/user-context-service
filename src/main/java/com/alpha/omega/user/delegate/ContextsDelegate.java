@@ -19,15 +19,13 @@ import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 import java.net.URI;
-import java.util.Map;
-import java.util.Optional;
 
+import static com.alpha.omega.user.idprovider.keycloak.KeyCloakUtils.extractSecret;
 import static com.alpha.omega.user.service.ServiceUtils.CORRELATION_ID;
 
 @Builder
@@ -51,6 +49,18 @@ public class ContextsDelegate implements ContextsApiDelegate {
                 .cast(ObjectNode.class)
                 .map(objectNode -> ResponseEntity.ok(objectNode));
     }
+
+    @Override
+    public Mono<ResponseEntity<ObjectNode>> getContextIdProviderSecret(String contextId, ServerWebExchange exchange) {
+        return keyCloakAuthenticationManager.getClientIdProviders(contextId)
+                .filter(map  -> !map.isEmpty())
+                .switchIfEmpty(Mono.defer(() -> Mono.error(new BadCredentialsException("Invalid Credentials"))))
+                .map(map -> extractSecret(map,contextId))
+                .map(map -> ServiceUtils.convertToJsonNode().apply(map, objectMapper))
+                .cast(ObjectNode.class)
+                .map(objectNode -> ResponseEntity.ok(objectNode));
+    }
+
 
     //@PreAuthorize("hasAuthority('CREATE_CONTEXTS')")
     @Override

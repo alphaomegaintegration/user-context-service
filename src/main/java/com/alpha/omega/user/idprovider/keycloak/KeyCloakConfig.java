@@ -1,6 +1,5 @@
 package com.alpha.omega.user.idprovider.keycloak;
 
-import com.alpha.omega.user.batch.BatchUtil;
 import com.alpha.omega.user.batch.UserLoad;
 import com.alpha.omega.user.repository.UserEntity;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -9,7 +8,6 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Import;
 
 import java.util.function.Function;
 
@@ -57,9 +55,9 @@ public class KeyCloakConfig {
     }
 
     @Bean
-    KeyCloakService.KeyCloakContextListener keyCloakContextListener(Keycloak keycloak, KeyCloakIdpProperties keyCloakIdpProperties,
-                                                                    KeyCloakService keyCloakService){
-        return KeyCloakService.KeyCloakContextListener.builder()
+    KeyCloakApplicationEventsListener keyCloakContextListener(Keycloak keycloak, KeyCloakIdpProperties keyCloakIdpProperties,
+                                                              KeyCloakService keyCloakService){
+        return KeyCloakApplicationEventsListener.builder()
                 .keycloak(keycloak)
                 .keyCloakIdpProperties(keyCloakIdpProperties)
                 .keyCloakService(keyCloakService)

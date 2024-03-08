@@ -1,13 +1,15 @@
 package com.alpha.omega.user.idprovider.keycloak;
 
+import com.alpha.omega.cache.DefaultObjectMapperFactory;
+import com.alpha.omega.cache.ObjectMapperFactory;
 import com.alpha.omega.security.key.KeyUtils;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.text.RandomStringGenerator;
 import org.keycloak.representations.idm.ClientRepresentation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.DefaultResourceLoader;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
@@ -15,7 +17,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import reactor.core.publisher.Mono;
 
-import java.nio.charset.Charset;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
@@ -41,7 +43,7 @@ public class KeyCloakUtils {
     };
     final static ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     final static ResourceLoader resourceLoader = new DefaultResourceLoader();
-    public static final String DEFAULT_CLIENT_TEMPLATE = "classpath:client/keycloak-client-template2.json";
+    public static final String DEFAULT_CLIENT_TEMPLATE = "classpath:client/keycloak-client-template.json";
 
     public final static Function<Map<String, Object>, Optional<Jwt>> convertResultMapToJwt(JwtDecoder jwtDecoder) {
         return map -> {
@@ -123,6 +125,23 @@ public class KeyCloakUtils {
         // Rebuilding the Secret Key using SecretKeySpec Class
         SecretKey originalKey = new SecretKeySpec(decodedKey, 0, decodedKey.length, "AES");
         return originalKey;
+    }
+
+    private static ObjectMapper objectMapper = new DefaultObjectMapperFactory().createObjectMapper(ObjectMapperFactory.Scope.SINGLETON);
+
+    /*
+
+     */
+    public static  Map<String, Object> extractSecret(Map<String, Object> map, String contextId) {
+        try {
+            logger.trace("Got Map => {}",objectMapper.writeValueAsString(map));
+        } catch (JsonProcessingException e) {
+            logger.warn("Could not extract map from ",map,e);
+        }
+        Map<String, Object> contextMap = (Map<String, Object>)map.get(contextId);
+        Map<String, Object> extracted = new HashMap<>();
+        extracted.put("secret",contextMap.get("secret"));
+        return extracted;
     }
 
 }

@@ -36,6 +36,27 @@ public class RandomPasswordGenerator {
         return password;
     }
 
+
+    public static final String generateCommonsLang3Password(int max) {
+        String upperCaseLetters = RandomStringUtils.random(max, 65, 90, true, true);
+        String lowerCaseLetters = RandomStringUtils.random(max, 97, 122, true, true);
+        String numbers = RandomStringUtils.randomNumeric(max);
+        //String specialChar = RandomStringUtils.random(max, 33, 47, false, false);
+        String totalChars = RandomStringUtils.randomAlphanumeric(max);
+        String combinedChars = upperCaseLetters.concat(lowerCaseLetters)
+                .concat(numbers)
+                .concat(totalChars);
+        List<Character> pwdChars = combinedChars.chars()
+                .mapToObj(c -> (char) c)
+                .collect(Collectors.toList());
+        Collections.shuffle(pwdChars);
+        String password = pwdChars.stream()
+                .limit(max)
+                .collect(StringBuilder::new, StringBuilder::append, StringBuilder::append)
+                .toString();
+        return password;
+    }
+
     public static final String generateSecureRandomPassword() {
         Stream<Character> pwdStream = Stream.concat(getRandomNumbers(2), Stream.concat(getRandomSpecialChars(2), Stream.concat(getRandomAlphabets(2, true), getRandomAlphabets(4, false))));
         List<Character> charList = pwdStream.collect(Collectors.toList());

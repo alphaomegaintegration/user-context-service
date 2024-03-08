@@ -26,4 +26,5 @@ public interface ContextService {
     Flux<Role> getRolesByContextIdAndRoleIdIn(String contextId, List<String> roleIds, boolean allRoles);
     Mono<Boolean> roleExistsInContext(String roleId, String contextId);
     Flux<Context> loadContexts(Scheduler scheduler, String contextsStr);
+    Flux<Context> getAllContexts();
 }

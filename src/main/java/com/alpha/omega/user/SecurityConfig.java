@@ -8,6 +8,7 @@ import com.alpha.omega.security.idprovider.keycloak.KeyCloakUtils;
 import com.alpha.omega.user.delegate.PublicDelegate;
 import com.alpha.omega.user.idprovider.keycloak.*;
 import com.alpha.omega.user.server.PublicApiController;
+import com.alpha.omega.user.service.ContextService;
 import com.alpha.omega.user.service.RedisUserContextService;
 import com.alpha.omega.user.service.UserContextService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -158,9 +159,11 @@ public class SecurityConfig {
 
     @Bean
     PublicDelegate PublicDelegate(ObjectMapper objectMapper,
-                                  @Qualifier("idProviderAuthenticationManager") ReactiveAuthenticationManager keyCloakAuthenticationManager){
+                                  @Qualifier("idProviderAuthenticationManager") ReactiveAuthenticationManager keyCloakAuthenticationManager,
+                                  ContextService contextService){
         return PublicDelegate.builder()
                 .keyCloakAuthenticationManager((KeyCloakAuthenticationManager)keyCloakAuthenticationManager)
+                .contextService(contextService)
                 .objectMapper(objectMapper)
                 .build();
     }
